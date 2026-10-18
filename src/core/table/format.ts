@@ -159,6 +159,8 @@ export interface TableDef {
     /** Seconds of ball save after each launch. */
     ballSave?: number;
   };
+  /** How the table looks. Purely visual: never read by the physics. */
+  appearance?: Appearance;
   /**
    * Per-table physics settings: only the values that differ from the engine
    * defaults (see physics/tuning.ts). Part of the published table, so scores
@@ -169,6 +171,19 @@ export interface TableDef {
   materials?: Partial<Record<MaterialName, Partial<MaterialDef>>>;
   parts: Part[];
 }
+
+export type ThemeName = 'midnight' | 'sunset' | 'classic';
+
+export interface Appearance {
+  /** Playfield art theme. Default 'midnight'. */
+  theme?: ThemeName;
+  /** Replaces the theme's accent color (CSS hex, e.g. "#ff8a00"). */
+  tint?: string;
+  /** Color of the light inserts (CSS hex). */
+  insertColor?: string;
+}
+
+export const THEMES: ThemeName[] = ['midnight', 'sunset', 'classic'];
 
 export const DEFAULT_MATERIALS: Record<MaterialName, MaterialDef> = {
   rubber: { elasticity: 0.8, falloff: 0.06, friction: 0.6 },
@@ -230,6 +245,14 @@ export function validateTable(t: unknown): ValidationIssue[] {
         if (!(k in DEFAULT_TUNING_KEYS)) issues.push({ message: `physics.${k} is not a known setting` });
         else if (typeof v !== 'number' || !Number.isFinite(v)) issues.push({ message: `physics.${k} must be a number` });
       }
+  }
+  if (tbl.appearance) {
+    const a = tbl.appearance;
+    if (a.theme !== undefined && !THEMES.includes(a.theme)) issues.push({ message: `appearance.theme must be one of ${THEMES.join(', ')}` });
+    for (const k of ['tint', 'insertColor'] as const) {
+      const v = a[k];
+      if (v !== undefined && !/^#[0-9a-fA-F]{6}$/.test(v)) issues.push({ message: `appearance.${k} must be a hex color like #ff8a00` });
+    }
   }
   if (starts !== 1) issues.push({ message: 'table needs exactly one ballStart' });
   if (drains < 1) issues.push({ message: 'table needs at least one drain' });

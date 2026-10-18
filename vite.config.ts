@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -6,6 +7,14 @@ export default defineConfig({
   server: { host: '127.0.0.1', port: 5280, strictPort: true },
   preview: { host: '127.0.0.1', port: 5281, strictPort: true },
   worker: { format: 'es' },
+  build: {
+    rollupOptions: {
+      input: {
+        play: resolve(import.meta.dirname, 'index.html'),
+        lab: resolve(import.meta.dirname, 'lab.html'),
+      },
+    },
+  },
   test: {
     include: ['tests/**/*.test.ts'],
     testTimeout: 30000,

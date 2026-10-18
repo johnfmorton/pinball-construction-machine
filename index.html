@@ -3,113 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pinball Construction Machine · Physics Lab</title>
+    <title>Pinball Construction Machine</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%23c8ced6%22 stroke=%22%235d6670%22 stroke-width=%222%22/%3E%3Ccircle cx=%2212%22 cy=%2211%22 r=%224%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="/src/debug/style.css" />
+    <link rel="stylesheet" href="/src/play/style.css" />
   </head>
   <body>
-    <div id="app">
-      <main id="stage">
-        <canvas id="table"></canvas>
-        <div id="banner" hidden></div>
-      </main>
-      <aside id="panel">
-        <header>
-          <h1>Physics Lab</h1>
-          <p class="sub">Pinball Construction Machine · Phase 0</p>
-        </header>
+    <canvas id="view"></canvas>
 
-        <section id="scoreboard">
-          <div class="score"><span id="score">0</span><small>score</small></div>
-          <div class="meta">
-            <span>Ball <b id="ball-num">–</b></span>
-            <span>× <b id="mult">1</b></span>
-            <span id="save-light" class="light">Ball save</span>
-            <span id="tilt-light" class="light warn">Tilt</span>
-          </div>
-        </section>
-
-        <section class="row">
-          <select id="table-select" aria-label="Table">
-            <option value="test">Test table</option>
-            <option value="lab">Flipper lab</option>
-          </select>
-          <button id="btn-start" title="S">Start game</button>
-        </section>
-
-        <section class="row">
-          <button id="btn-pause" title="P">Pause</button>
-          <button id="btn-step" title=".">Step 1 ms</button>
-          <div class="seg" id="speed-seg" role="group" aria-label="Time scale">
-            <button data-scale="1" class="on">1×</button>
-            <button data-scale="0.25">¼×</button>
-            <button data-scale="0.05">1⁄20×</button>
-          </div>
-        </section>
-
-        <details open>
-          <summary>Telemetry</summary>
-          <dl id="telemetry"></dl>
-          <canvas id="spark" height="48"></canvas>
-        </details>
-
-        <details>
-          <summary>Overlays</summary>
-          <div class="checks">
-            <label><input type="checkbox" id="ov-trail" checked /> Ball trail <kbd>T</kbd></label>
-            <label><input type="checkbox" id="ov-vec" checked /> Velocity vectors <kbd>V</kbd></label>
-            <label><input type="checkbox" id="ov-wire" /> Collider wireframe <kbd>W</kbd></label>
-            <label><input type="checkbox" id="ov-grid" /> 5 cm grid <kbd>G</kbd></label>
-          </div>
-        </details>
-
-        <details open>
-          <summary>Tuning</summary>
-          <p class="hint">Physics for <b id="tuning-for"></b>. Changes apply live and are remembered for this table in this browser. <b>Save to table</b> writes them into the table file, which is what published games and high scores will use. Highlighted settings differ from the table file.</p>
-          <div class="row">
-            <button id="btn-tune-save" title="Write these settings into the table and download it">Save to table…</button>
-            <button id="btn-tune-table" title="Discard changes; go back to the table file's settings">Revert to table</button>
-          </div>
-          <div id="tuning"></div>
-          <div class="row">
-            <button id="btn-tune-reset" title="Set every slider to the engine's defaults">Engine defaults</button>
-            <button id="btn-tune-copy">Copy JSON</button>
-          </div>
-        </details>
-
-        <details>
-          <summary>Replays</summary>
-          <p class="hint">Every game records its inputs. A replay re-simulates the game exactly; that's how scores will be verified on the server.</p>
-          <div class="row">
-            <button id="btn-replay-save">Download replay</button>
-            <label class="file-btn">Play replay…<input type="file" id="replay-file" accept=".json,application/json" hidden /></label>
-            <button id="btn-replay-clear" title="Stop any replay and reset the table">Clear</button>
-          </div>
-          <p id="replay-status" class="hint"></p>
-        </details>
-
-        <details>
-          <summary>Custom table</summary>
-          <p class="hint">Load a table JSON file in the v1 format (see <code>docs/table-format.md</code>).</p>
-          <label class="file-btn">Load table…<input type="file" id="table-file" accept=".json,application/json" hidden /></label>
-          <p id="table-status" class="hint"></p>
-        </details>
-
-        <details open>
-          <summary>Controls</summary>
-          <table class="keys">
-            <tr><td><kbd>Z</kbd> <kbd>⇧ L</kbd> <kbd>←</kbd></td><td>Left flipper</td></tr>
-            <tr><td><kbd>/</kbd> <kbd>⇧ R</kbd> <kbd>→</kbd></td><td>Right flipper</td></tr>
-            <tr><td><kbd>Enter</kbd> <kbd>↓</kbd></td><td>Plunger (hold to pull, release)</td></tr>
-            <tr><td><kbd>Space</kbd> <kbd>Q</kbd> <kbd>E</kbd></td><td>Nudge forward / left / right</td></tr>
-            <tr><td><kbd>S</kbd></td><td>Start game</td></tr>
-            <tr><td><kbd>B</kbd></td><td>Serve extra ball</td></tr>
-            <tr><td>Drag on table</td><td>Place and throw a ball</td></tr>
-            <tr><td><kbd>P</kbd> <kbd>.</kbd> <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td>Pause, step, time scale</td></tr>
-          </table>
-        </details>
-      </aside>
+    <div id="dmd" aria-live="polite">
+      <div id="dmd-score">0</div>
+      <div id="dmd-line"><span id="dmd-ball">PRESS S TO START</span><span id="dmd-mult"></span></div>
     </div>
-    <script type="module" src="/src/debug/main.ts"></script>
+
+    <div id="message" hidden></div>
+
+    <nav id="corner">
+      <a href="/lab.html" title="Open the 2D physics lab">Physics Lab</a>
+      <select id="table-select" aria-label="Table">
+        <option value="test">Test table</option>
+        <option value="lab">Flipper lab</option>
+      </select>
+      <select id="theme-select" aria-label="Playfield theme">
+        <option value="midnight">Midnight</option>
+        <option value="sunset">Sunset Strip</option>
+        <option value="classic">Classic 1977</option>
+      </select>
+      <select id="quality-select" aria-label="Graphics quality">
+        <option value="auto">Quality: Auto</option>
+        <option value="high">Quality: High</option>
+        <option value="medium">Quality: Medium</option>
+        <option value="low">Quality: Low</option>
+      </select>
+      <span id="fps"></span>
+    </nav>
+
+    <div id="help">
+      <kbd>S</kbd> start · <kbd>Z</kbd>/<kbd>⇧</kbd> left flipper · <kbd>/</kbd>/<kbd>⇧</kbd> right flipper · hold <kbd>Enter</kbd> plunger ·
+      <kbd>Space</kbd> <kbd>Q</kbd> <kbd>E</kbd> nudge · <kbd>P</kbd> pause · <kbd>M</kbd> sound · <kbd>H</kbd> hide
+    </div>
+
+    <script type="module" src="/src/play/main.ts"></script>
   </body>
 </html>
