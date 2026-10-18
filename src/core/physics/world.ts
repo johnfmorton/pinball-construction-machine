@@ -400,6 +400,27 @@ export class World {
     }
   }
 
+  /** True if a ball of radius r at (x, y) would overlap any solid part. */
+  overlaps(x: number, y: number, r: number): boolean {
+    return this.partsNear(x, y, r).length > 0;
+  }
+
+  /** Ids of solid parts within distance r of (x, y). */
+  partsNear(x: number, y: number, r: number): string[] {
+    const out = new Set<string>();
+    const d = this.dist;
+    for (const c of this.statics) {
+      if (!c.enabled) continue;
+      segmentDistance(c.ax, c.ay, c.bx, c.by, x, y, d);
+      if (d.d < c.r + r) out.add(c.partId.split(':')[0]);
+    }
+    for (const f of this.flippers) {
+      this.flipperDistance(f, f.phase, x, y);
+      if (d.d < r) out.add(f.partId);
+    }
+    return [...out].sort();
+  }
+
   resetTargets(partIds: string[]): void {
     const set = new Set(partIds);
     for (const c of this.statics) if (set.has(c.partId)) c.enabled = true;

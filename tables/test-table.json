@@ -444,6 +444,28 @@
       "group": "drops"
     },
     {
+      "id": "drop-deflector",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.472,
+          0.405
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.441,
+              0.444
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "drop-backstop",
       "type": "wall",
       "thickness": 0.006,
@@ -452,7 +474,7 @@
       "path": {
         "start": [
           0.455,
-          0.43
+          0.452
         ],
         "cmds": [
           {
@@ -460,6 +482,35 @@
             "to": [
               0.455,
               0.55
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.472,
+              0.565
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "standup-deflector",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          -0.003,
+          0.398
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.019,
+              0.436
             ]
           }
         ]

@@ -85,19 +85,19 @@
     {
       "id": "lab-right-wall",
       "type": "wall",
-      "thickness": 0.006,
+      "thickness": 0.036,
       "height": 0.05,
       "material": "wood",
       "path": {
         "start": [
-          0.475,
+          0.493,
           0.25
         ],
         "cmds": [
           {
             "op": "line",
             "to": [
-              0.475,
+              0.493,
               1.08
             ]
           }

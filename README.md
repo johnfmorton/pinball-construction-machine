@@ -20,6 +20,7 @@ Other scripts:
 ```bash
 npm run sim                                   # headless smoke run with throughput numbers
 npm run verify-replay -- replay.json          # verify a downloaded replay the way the server will
+npm run traps -- tables/test-table.json       # drop 200 balls, report anywhere one can get stuck
 npx tsx scripts/make-tables.ts                # regenerate the test tables in /tables
 ```
 

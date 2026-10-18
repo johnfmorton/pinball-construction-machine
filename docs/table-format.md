@@ -67,4 +67,6 @@ Curves are flattened to short straight pieces (0.8 mm tolerance) when the table 
 
 ## Validation
 
-`validateTable()` checks structure (format/version, unique ids, one `ballStart`, at least one drain and flipper). The editor will add geometry checks later: gaps a ball can escape through, ball traps, and a "drop 100 balls" smoke test before publishing.
+`validateTable()` checks structure (format/version, unique ids, one `ballStart`, at least one drain and flipper). `findTraps()` (`src/core/table/traps.ts`, or `npm run traps -- table.json`) is the geometry check: it flood-fills the area a ball can reach from the ball start, drops balls at random spots inside it with the flippers idle, and reports any ball that comes to rest instead of draining (resting on the plunger is allowed). It runs with drop targets up and down. The editor will run it before a table can be published.
+
+A common trap is a ledge: a part mounted close to a wall, with a gap narrower than the ball (27 mm). A ball rolling down the wall lands on the part's top end and stays there. Real tables fix this with a sloped deflector from the wall to the part; see `standup-deflector` and `drop-deflector` in the test table.

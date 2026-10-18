@@ -118,7 +118,8 @@ function cabinet(withShooterLane: boolean): Part[] {
     parts.push({ id: 'ball-start', type: 'ballStart', pos: [0.494, 0.983] });
   } else {
     // flipper lab: close the right side where the lane would be
-    parts.push(line('lab-right-wall', [[0.475, 0.25], [0.475, L + 0.01]], 0.006, 'wood'));
+    // a solid block filling the unused shooter-lane space
+    parts.push(line('lab-right-wall', [[0.493, 0.25], [0.493, L + 0.01]], 0.036, 'wood'));
   }
   return parts;
 }
@@ -145,9 +146,14 @@ function classic(): TableDef {
   for (const [i, y] of [0.46, 0.49, 0.52].entries()) {
     parts.push({ id: `drop-${i + 1}`, type: 'dropTarget', pos: [0.44, y], angle: 180, width: 0.026, points: 250, group: 'drops' });
   }
-  parts.push(line('drop-backstop', [[0.455, 0.43], [0.455, 0.55]], 0.006, 'wood'));
+  // Sloped deflector from the shooter-lane wall to the top target, so a ball
+  // rolling down the wall is turned back onto the playfield instead of landing
+  // on a ledge, plus a backstop behind the bank.
+  parts.push(line('drop-deflector', [[0.472, 0.405], [0.441, 0.444]], 0.006, 'metal'));
+  parts.push(line('drop-backstop', [[0.455, 0.452], [0.455, 0.55], [0.472, 0.565]], 0.006, 'wood'));
 
-  // standup targets on the left
+  // standup targets on the left, with a deflector so balls can't perch on top
+  parts.push(line('standup-deflector', [[-0.003, 0.398], [0.019, 0.436]], 0.006, 'metal'));
   for (const [i, y] of [0.45, 0.49].entries()) {
     parts.push({ id: `standup-${i + 1}`, type: 'standupTarget', pos: [0.02, y], angle: 0, width: 0.024, points: 300 });
   }
