@@ -10,7 +10,7 @@ Requires Node 20+.
 
 ```bash
 npm install
-npm run dev        # Physics Lab at http://localhost:5173
+npm run dev        # Physics Lab at http://127.0.0.1:5280
 npm test           # physics, determinism, and replay tests
 npm run typecheck
 ```
