@@ -5,7 +5,7 @@
 import testTable from '../../tables/test-table.json';
 import flipperLab from '../../tables/flipper-lab.json';
 import { validateTable, type TableDef } from '../core/table/format.ts';
-import { DEFAULT_TUNING, TUNING_SPECS, type Tuning } from '../core/physics/tuning.ts';
+import { DEFAULT_TUNING, TUNING_SPECS, tableTuning, tuningDiff, type Tuning } from '../core/physics/tuning.ts';
 import type { Replay } from '../core/sim/replay.ts';
 import type { InputKind } from '../core/sim/simulation.ts';
 import type { FromWorker, Snapshot, Stats, ToWorker } from '../worker/protocol.ts';
@@ -40,7 +40,7 @@ function save(key: string, value: unknown): void {
 
 // ---------------------------------------------------------------- state
 
-let tuning: Tuning = load('pcm.tuning', { ...DEFAULT_TUNING });
+let tuning: Tuning = { ...DEFAULT_TUNING };
 const overlays: Overlays = load('pcm.overlays', { trail: true, vectors: true, wire: false, grid: false });
 let table: TableDef = TABLES.test;
 let snap: Snapshot | null = null;
@@ -58,8 +58,16 @@ const canvas = $<HTMLCanvasElement>('table');
 const renderer = new Renderer(canvas, table);
 const sfx = new Sfx();
 
+/** Per-table tuning is remembered in this browser under the table's name. */
+function tuningKey(t: TableDef): string {
+  return `pcm.tuning.${t.meta.name}`;
+}
+
 function loadTable(t: TableDef): void {
   table = t;
+  tuning = load(tuningKey(t), tableTuning(t));
+  $('tuning-for').textContent = t.meta.name;
+  buildTuning();
   renderer.setTable(t);
   snap = null;
   send({ type: 'load', table: t, tuning, seed: 1 });
@@ -132,7 +140,8 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
       break;
     case 'replayDone':
       $('replay-status').textContent = m.ok
-        ? `✓ Replay verified: re-simulated score ${m.score.toLocaleString()} matches.`
+        ? `✓ Replay verified: re-simulated score ${m.score.toLocaleString()} matches.` +
+          (m.tuningMatchesTable ? '' : ' It was recorded with physics settings that differ from the table file, so it wouldn’t count for high scores.')
         : `✗ Replay mismatch: got ${m.score.toLocaleString()}, expected ${m.expected.toLocaleString()}.`;
       break;
     case 'error':
@@ -345,12 +354,13 @@ function buildTuning(): void {
     const sync = () => {
       input.value = String(tuning[spec.key]);
       out.textContent = fmt(tuning[spec.key], spec.step);
-      row.classList.toggle('changed', tuning[spec.key] !== DEFAULT_TUNING[spec.key]);
+      row.classList.toggle('changed', tuning[spec.key] !== tableTuning(table)[spec.key]);
+      row.title = `Table file: ${fmt(tableTuning(table)[spec.key], spec.step)} · engine default: ${fmt(DEFAULT_TUNING[spec.key], spec.step)}`;
     };
     input.oninput = () => {
       tuning = { ...tuning, [spec.key]: Number(input.value) };
       sync();
-      save('pcm.tuning', tuning);
+      save(tuningKey(table), tuning);
       send({ type: 'tuning', tuning });
     };
     input.onkeydown = (e) => e.stopPropagation();
@@ -359,27 +369,50 @@ function buildTuning(): void {
   }
 }
 
-$('btn-tune-reset').onclick = () => {
-  tuning = { ...DEFAULT_TUNING };
-  save('pcm.tuning', tuning);
+function setTuning(t: Tuning): void {
+  tuning = { ...t };
+  save(tuningKey(table), tuning);
   send({ type: 'tuning', tuning });
   buildTuning();
+}
+
+$('btn-tune-reset').onclick = () => setTuning(DEFAULT_TUNING);
+$('btn-tune-table').onclick = () => setTuning(tableTuning(table));
+
+$('btn-tune-save').onclick = () => {
+  const physics = tuningDiff(tuning);
+  const next: TableDef = { ...table };
+  if (Object.keys(physics).length) next.physics = physics;
+  else delete next.physics;
+  // keep the in-memory copy in step with the downloaded file for this session
+  const sel = $<HTMLSelectElement>('table-select');
+  if (TABLES[sel.value] === table) TABLES[sel.value] = next;
+  const slug = next.meta.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  downloadPretty(`${slug}.json`, next);
+  loadTable(next);
+  showBanner('Saved to table · game restarted');
 };
 
 $('btn-tune-copy').onclick = async () => {
-  const changed = Object.fromEntries(Object.entries(tuning).filter(([k, v]) => DEFAULT_TUNING[k as keyof Tuning] !== v));
-  const text = JSON.stringify(Object.keys(changed).length ? changed : tuning, null, 2);
+  const text = JSON.stringify({ physics: tuningDiff(tuning) }, null, 2);
   try {
     await navigator.clipboard.writeText(text);
     showBanner('Tuning copied');
   } catch {
-    download('tuning.json', tuning);
+    download('tuning.json', tuningDiff(tuning));
   }
 };
 
-buildTuning();
-
 // ---------------------------------------------------------------- replays & files
+
+function downloadPretty(name: string, data: unknown): void {
+  const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 
 function download(name: string, data: unknown): void {
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });

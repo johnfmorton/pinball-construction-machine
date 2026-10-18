@@ -38,7 +38,7 @@ npx tsx scripts/make-tables.ts                # regenerate the test tables in /t
 | `P`, `.`, `1` `2` `3` | Pause, single-step 1 ms, time scale 1× / ¼× / 1⁄20× |
 | `T`, `V`, `W`, `G` | Overlays: trail, velocity vectors, collider wireframe, grid |
 
-The side panel has live telemetry (ball speed, skid, spin, flipper tip speed, launch speed, physics cost per step), sliders for every physics constant (saved in your browser; **Copy JSON** exports the changes), replay download/playback with score verification, and a loader for custom table JSON.
+The side panel has live telemetry (ball speed, skid, spin, flipper tip speed, launch speed, physics cost per step), sliders for every physics constant, per table (remembered in your browser; **Save to table** writes them into the table file), replay download/playback with score verification, and a loader for custom table JSON.
 
 Two tables ship with the prototype:
 

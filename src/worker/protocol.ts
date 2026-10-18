@@ -55,5 +55,5 @@ export interface Stats {
 export type FromWorker =
   | { type: 'frame'; snap: Snapshot; events: GameEvent[]; stats: Stats }
   | { type: 'replay'; replay: Replay }
-  | { type: 'replayDone'; ok: boolean; score: number; expected: number; reason?: string }
+  | { type: 'replayDone'; ok: boolean; tuningMatchesTable: boolean; score: number; expected: number; reason?: string }
   | { type: 'error'; message: string };

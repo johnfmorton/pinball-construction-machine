@@ -65,9 +65,14 @@
 
         <details open>
           <summary>Tuning</summary>
+          <p class="hint">Physics for <b id="tuning-for"></b>. Changes apply live and are remembered for this table in this browser. <b>Save to table</b> writes them into the table file, which is what published games and high scores will use. Highlighted settings differ from the table file.</p>
+          <div class="row">
+            <button id="btn-tune-save" title="Write these settings into the table and download it">Save to table…</button>
+            <button id="btn-tune-table" title="Discard changes; go back to the table file's settings">Revert to table</button>
+          </div>
           <div id="tuning"></div>
           <div class="row">
-            <button id="btn-tune-reset">Reset to defaults</button>
+            <button id="btn-tune-reset" title="Set every slider to the engine's defaults">Engine defaults</button>
             <button id="btn-tune-copy">Copy JSON</button>
           </div>
         </details>

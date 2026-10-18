@@ -16,6 +16,7 @@
  * need a format break.
  */
 import type { Path, Vec2 } from '../math/bezier.ts';
+import type { Tuning } from '../physics/tuning.ts';
 
 export const TABLE_FORMAT = 'pcm-table';
 export const TABLE_VERSION = 1;
@@ -158,6 +159,12 @@ export interface TableDef {
     /** Seconds of ball save after each launch. */
     ballSave?: number;
   };
+  /**
+   * Per-table physics settings: only the values that differ from the engine
+   * defaults (see physics/tuning.ts). Part of the published table, so scores
+   * are always verified with the physics the table was built for.
+   */
+  physics?: Partial<Tuning>;
   /** Per-table overrides of the default material presets. */
   materials?: Partial<Record<MaterialName, Partial<MaterialDef>>>;
   parts: Part[];
@@ -172,6 +179,17 @@ export const DEFAULT_MATERIALS: Record<MaterialName, MaterialDef> = {
   plastic: { elasticity: 0.55, falloff: 0.04, friction: 0.18 },
   target: { elasticity: 0.3, falloff: 0.02, friction: 0.2 },
 };
+
+// Key list for validation, kept here to avoid a runtime import cycle.
+const DEFAULT_TUNING_KEYS: Record<string, true> = Object.fromEntries(
+  [
+    'gravity', 'slopeOverride', 'ballRadius', 'ballMass', 'floorFriction', 'rollingResistance', 'spinDamping',
+    'maxBallSpeed', 'flipperInertia', 'flipperCoilTorque', 'flipperHoldTorque', 'flipperReturnTorque',
+    'flipperStopBounce', 'bumperKick', 'slingThreshold', 'slingKick', 'bumperThreshold', 'plungerMass',
+    'plungerSpring', 'plungerPullSpeed', 'nudgeStrength', 'tiltPerNudge', 'tiltDecay', 'tiltWarning',
+    'tiltThreshold', 'restingSpeed', 'elasticityScale', 'frictionScale',
+  ].map((k) => [k, true]),
+);
 
 export interface ValidationIssue {
   partId?: string;
@@ -204,6 +222,14 @@ export function validateTable(t: unknown): ValidationIssue[] {
     if (p.type === 'ballStart') starts++;
     if (p.type === 'drain') drains++;
     if (p.type === 'wall' && !(p.thickness > 0)) issues.push({ partId: p.id, message: 'wall thickness must be > 0' });
+  }
+  if (tbl.physics !== undefined) {
+    if (typeof tbl.physics !== 'object' || tbl.physics === null) issues.push({ message: 'physics must be an object' });
+    else
+      for (const [k, v] of Object.entries(tbl.physics)) {
+        if (!(k in DEFAULT_TUNING_KEYS)) issues.push({ message: `physics.${k} is not a known setting` });
+        else if (typeof v !== 'number' || !Number.isFinite(v)) issues.push({ message: `physics.${k} must be a number` });
+      }
   }
   if (starts !== 1) issues.push({ message: 'table needs exactly one ballStart' });
   if (drains < 1) issues.push({ message: 'table needs at least one drain' });

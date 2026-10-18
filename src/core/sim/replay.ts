@@ -4,7 +4,7 @@
  * score only if it matches exactly.
  */
 import type { TableDef } from '../table/format.ts';
-import type { Tuning } from '../physics/tuning.ts';
+import { sameTuning, tableTuning, type Tuning } from '../physics/tuning.ts';
 import { Simulation, type InputRecord } from './simulation.ts';
 
 export interface Replay {
@@ -53,7 +53,14 @@ export function makeReplay(sim: Simulation): Replay {
 }
 
 export interface ReplayResult {
+  /** The re-simulated score matches the claimed score. */
   ok: boolean;
+  /**
+   * The game used the table's own physics settings. A replay recorded with
+   * different settings (e.g. while experimenting with the lab sliders) can
+   * still re-simulate correctly, but doesn't count for the table's high scores.
+   */
+  tuningMatchesTable: boolean;
   score: number;
   expected: number;
   reason?: string;
@@ -65,7 +72,14 @@ export function runReplay(table: TableDef, replay: Replay, onStep?: (sim: Simula
   const sim = new Simulation(table, replay.tuning, replay.seed);
   const tableHash = hashJson(table);
   if (tableHash !== replay.tableHash) {
-    return { ok: false, score: 0, expected: replay.score, reason: `table hash mismatch (${tableHash} ≠ ${replay.tableHash})`, sim };
+    return {
+      ok: false,
+      tuningMatchesTable: false,
+      score: 0,
+      expected: replay.score,
+      reason: `table hash mismatch (${tableHash} ≠ ${replay.tableHash})`,
+      sim,
+    };
   }
   let i = 0;
   const inputs = replay.inputs;
@@ -81,6 +95,7 @@ export function runReplay(table: TableDef, replay: Replay, onStep?: (sim: Simula
   const score = sim.state.score;
   return {
     ok: score === replay.score,
+    tuningMatchesTable: sameTuning(replay.tuning, tableTuning(table)),
     score,
     expected: replay.score,
     reason: score === replay.score ? undefined : 'score mismatch',

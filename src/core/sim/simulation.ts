@@ -7,7 +7,7 @@
  */
 import { Rng } from '../math/rng.ts';
 import type { TableDef, Part, BallStartPart } from '../table/format.ts';
-import { DEFAULT_TUNING, type Tuning } from '../physics/tuning.ts';
+import { tableTuning, type Tuning } from '../physics/tuning.ts';
 import { World, STEP, type PhysEvent } from '../physics/world.ts';
 
 export type InputKind =
@@ -70,7 +70,8 @@ export class Simulation {
   private ballSaveArmed = false;
   private lastTiltWarning = 0;
 
-  constructor(table: TableDef, tuning: Tuning = DEFAULT_TUNING, seed = 1) {
+  /** `tuning` defaults to the table's own physics (engine defaults + table.physics). */
+  constructor(table: TableDef, tuning: Tuning = tableTuning(table), seed = 1) {
     this.table = table;
     this.seed = seed;
     this.rng = new Rng(seed);

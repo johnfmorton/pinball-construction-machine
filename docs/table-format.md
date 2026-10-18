@@ -19,10 +19,13 @@ A table is one JSON document. The editor writes it, the physics engine and rende
   "meta": { "name": "My Table", "author": "John", "description": "…" },
   "dimensions": { "width": 0.51, "length": 1.07, "slope": 6.5 },
   "rules": { "ballsPerGame": 3, "ballSave": 8 },
+  "physics": { "bumperKick": 2.2 },
   "materials": { "rubber": { "elasticity": 0.85 } },
   "parts": [ … ]
 }
 ```
+
+`physics` holds the table's own physics settings: only the ones that differ from the engine defaults in [`physics/tuning.ts`](../src/core/physics/tuning.ts), for example `{ "bumperKick": 2.2, "flipperCoilTorque": 4 }`. They're part of the table, so a published table's physics are fixed along with its layout, and high scores are verified with them. A replay recorded with different settings still re-simulates, but isn't eligible for the table's high scores.
 
 `materials` optionally overrides the presets (`rubber`, `postRubber`, `flipperRubber`, `metal`, `wood`, `plastic`, `target`), each with `elasticity`, `falloff`, `friction`.
 

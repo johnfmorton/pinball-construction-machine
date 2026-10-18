@@ -5,7 +5,7 @@
  * Built in code (rather than by hand in JSON) so left/right parts are exact
  * mirror images. Once the editor exists, tables will be authored there.
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import type { Part, TableDef } from '../src/core/table/format.ts';
 import type { Vec2 } from '../src/core/math/bezier.ts';
 
@@ -192,6 +192,16 @@ function flipperLab(): TableDef {
   };
 }
 
-writeFileSync(new URL('../tables/test-table.json', import.meta.url), JSON.stringify(classic(), null, 2) + '\n');
-writeFileSync(new URL('../tables/flipper-lab.json', import.meta.url), JSON.stringify(flipperLab(), null, 2) + '\n');
+/** Write a table, keeping any `physics` block already saved into the file from the lab. */
+function write(file: string, t: TableDef): void {
+  const url = new URL(`../tables/${file}`, import.meta.url);
+  if (existsSync(url)) {
+    const prev = JSON.parse(readFileSync(url, 'utf8')) as TableDef;
+    if (prev.physics && Object.keys(prev.physics).length) t = { ...t, physics: prev.physics };
+  }
+  writeFileSync(url, JSON.stringify(t, null, 2) + '\n');
+}
+
+write('test-table.json', classic());
+write('flipper-lab.json', flipperLab());
 console.log('wrote tables/test-table.json and tables/flipper-lab.json');

@@ -46,7 +46,7 @@ Rules for code under `src/core/`:
 
 ## Tuning
 
-Every constant is in `src/core/physics/tuning.ts` and has a slider in the Physics Lab. The defaults are educated guesses from real-machine numbers. Phase 0's gate is getting them to *feel* right. Things worth checking against real-table reference video:
+Every constant is in `src/core/physics/tuning.ts` and has a slider in the Physics Lab. The values there are the engine defaults; each table can override any of them in its `physics` block (see the table format). In the lab, sliders edit the current table's settings, are remembered per table in the browser, and **Save to table** writes the changes into the table file. Re-running `scripts/make-tables.ts` keeps a saved `physics` block. The defaults are educated guesses from real-machine numbers. Phase 0's gate is getting them to *feel* right. Things worth checking against real-table reference video:
 
 | Behavior | Where to look | Current default |
 | --- | --- | --- |

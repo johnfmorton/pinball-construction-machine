@@ -94,6 +94,27 @@ export const DEFAULT_TUNING: Tuning = {
   frictionScale: 1,
 };
 
+/** The physics a table plays with: engine defaults plus the table's own overrides. */
+export function tableTuning(table: { physics?: Partial<Tuning> }): Tuning {
+  const t: Tuning = { ...DEFAULT_TUNING };
+  for (const k of Object.keys(DEFAULT_TUNING) as (keyof Tuning)[]) {
+    const v = table.physics?.[k];
+    if (typeof v === 'number' && Number.isFinite(v)) t[k] = v;
+  }
+  return t;
+}
+
+/** Only the settings that differ from the engine defaults (what a table file stores). */
+export function tuningDiff(t: Tuning): Partial<Tuning> {
+  const out: Partial<Tuning> = {};
+  for (const k of Object.keys(DEFAULT_TUNING) as (keyof Tuning)[]) if (t[k] !== DEFAULT_TUNING[k]) out[k] = t[k];
+  return out;
+}
+
+export function sameTuning(a: Tuning, b: Tuning): boolean {
+  return (Object.keys(DEFAULT_TUNING) as (keyof Tuning)[]).every((k) => a[k] === b[k]);
+}
+
 export interface TuningSpec {
   key: keyof Tuning;
   label: string;

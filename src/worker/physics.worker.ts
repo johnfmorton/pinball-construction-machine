@@ -6,6 +6,7 @@
 import { Simulation } from '../core/sim/simulation.ts';
 import { makeReplay, hashJson, type Replay } from '../core/sim/replay.ts';
 import { STEP } from '../core/physics/world.ts';
+import { sameTuning, tableTuning } from '../core/physics/tuning.ts';
 import type { GameEvent } from '../core/sim/simulation.ts';
 import type { FromWorker, Snapshot, ToWorker } from './protocol.ts';
 
@@ -46,7 +47,14 @@ function advance(n: number): void {
       }
       if (sim.steps >= replay.steps) {
         const ok = sim.state.score === replay.score;
-        post({ type: 'replayDone', ok, score: sim.state.score, expected: replay.score, reason: ok ? undefined : 'score mismatch' });
+        post({
+          type: 'replayDone',
+          ok,
+          tuningMatchesTable: sameTuning(replay.tuning, tableTuning(sim.table)),
+          score: sim.state.score,
+          expected: replay.score,
+          reason: ok ? undefined : 'score mismatch',
+        });
         mode = 'live';
         replay = null;
         break;

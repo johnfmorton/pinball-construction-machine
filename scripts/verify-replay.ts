@@ -28,4 +28,8 @@ if (!res.ok) {
   console.error(`REJECTED: ${res.reason}`);
   process.exit(1);
 }
-console.log('VERIFIED');
+if (!res.tuningMatchesTable) {
+  console.log('VERIFIED, but recorded with physics settings that differ from the table: not leaderboard-eligible');
+  process.exit(3);
+}
+console.log(replay.debug ? 'VERIFIED (debug inputs: not leaderboard-eligible)' : 'VERIFIED: leaderboard-eligible');
