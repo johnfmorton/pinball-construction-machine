@@ -53,6 +53,20 @@ export class Renderer {
     this.resize();
   }
 
+  /**
+   * Editor mode: the canvas fills its parent and the view can be zoomed and
+   * panned. The lab uses the default (canvas sized to fit the table).
+   */
+  fill = false;
+  zoom = 1;
+  /** Pan offset in CSS pixels (editor mode). */
+  panX = 0;
+  panY = 0;
+  /** Drawn last, in table coordinates (meters); `px` is one device pixel. */
+  overlay: ((ctx: CanvasRenderingContext2D, px: number) => void) | null = null;
+  /** CSS pixels per meter at the current zoom. */
+  cssScale = 1;
+
   resize(): void {
     const parent = this.canvas.parentElement!;
     const dpr = window.devicePixelRatio || 1;
@@ -61,12 +75,26 @@ export class Renderer {
     const availW = parent.clientWidth - margin * 2;
     const availH = parent.clientHeight - margin * 2;
     const s = Math.min(availW / W, availH / L);
+    if (this.fill) {
+      const cssW = parent.clientWidth;
+      const cssH = parent.clientHeight;
+      this.canvas.style.width = `${cssW}px`;
+      this.canvas.style.height = `${cssH}px`;
+      this.canvas.width = Math.floor(cssW * dpr);
+      this.canvas.height = Math.floor(cssH * dpr);
+      this.cssScale = s * this.zoom;
+      this.scale = this.cssScale * dpr;
+      this.ox = ((cssW - W * this.cssScale) / 2 + this.panX) * dpr;
+      this.oy = ((cssH - L * this.cssScale) / 2 + this.panY) * dpr;
+      return;
+    }
     const cssW = Math.floor(W * s + 40);
     const cssH = Math.floor(L * s + 40);
     this.canvas.style.width = `${cssW}px`;
     this.canvas.style.height = `${cssH}px`;
     this.canvas.width = Math.floor(cssW * dpr);
     this.canvas.height = Math.floor(cssH * dpr);
+    this.cssScale = s;
     this.scale = s * dpr;
     this.ox = 20 * dpr;
     this.oy = 20 * dpr;
@@ -295,6 +323,8 @@ export class Renderer {
       ctx.stroke();
       this.arrow(d.x0, d.y0, d.x1, d.y1, '#ffb547', px);
     }
+
+    this.overlay?.(ctx, px);
   }
 
   private drawFlipper(px0: number, py0: number, a: number, L: number, rb: number, rt: number, wire: boolean, px: number): void {

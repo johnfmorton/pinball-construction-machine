@@ -5,7 +5,7 @@
 import testTable from '../../tables/test-table.json';
 import flipperLab from '../../tables/flipper-lab.json';
 import { tableTuning } from '../core/physics/tuning.ts';
-import type { TableDef, ThemeName } from '../core/table/format.ts';
+import { validateTable, type TableDef, type ThemeName } from '../core/table/format.ts';
 import type { FromWorker, Snapshot, ToWorker } from '../worker/protocol.ts';
 import { Stage, type Quality } from '../render3d/stage.ts';
 import { Table3D } from '../render3d/table3d.ts';
@@ -38,7 +38,18 @@ const sfx = new Sfx();
 const worker = new Worker(new URL('../worker/physics.worker.ts', import.meta.url), { type: 'module' });
 const send = (m: ToWorker) => worker.postMessage(m);
 
-let tableKey: string = stored<string>('pcm.play.table', 'test');
+// the editor's ▶ Play opens /?table=draft with its autosaved draft
+try {
+  const raw = localStorage.getItem('pcm.editor.draft');
+  if (raw) {
+    const draft = JSON.parse(raw) as TableDef;
+    if (!validateTable(draft).length) TABLES.draft = draft;
+  }
+} catch {
+  /* no draft */
+}
+const fromUrl = new URLSearchParams(location.search).get('table');
+let tableKey: string = fromUrl && TABLES[fromUrl] ? fromUrl : stored<string>('pcm.play.table', 'test');
 if (!TABLES[tableKey]) tableKey = 'test';
 let theme = stored<ThemeName>('pcm.play.theme', 'midnight');
 let qualityChoice = stored<Quality | 'auto'>('pcm.play.quality', 'auto');
@@ -58,6 +69,12 @@ function loadTable(): void {
   send({ type: 'load', table: base, tuning: tableTuning(base), seed: 1 });
 }
 
+if (TABLES.draft) {
+  const opt = document.createElement('option');
+  opt.value = 'draft';
+  opt.textContent = 'Editor draft';
+  $<HTMLSelectElement>('table-select').appendChild(opt);
+}
 $<HTMLSelectElement>('table-select').value = tableKey;
 $<HTMLSelectElement>('theme-select').value = theme;
 $<HTMLSelectElement>('quality-select').value = qualityChoice;
