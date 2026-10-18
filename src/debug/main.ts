@@ -91,6 +91,7 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
           case 'hit':
             lastImpact = ev.speed;
             sfx.hit(ev.speed, ev.partId);
+            if (ev.partId.startsWith('post') && ev.speed > 0.3) renderer.flash(ev.partId);
             break;
           case 'target':
           case 'drop':

@@ -163,6 +163,19 @@ export class Renderer {
         ctx.fill();
         continue;
       }
+      if (c.ax === c.bx && c.ay === c.by) {
+        // posts: draw a real circle (WebKit skips zero-length round-capped lines)
+        ctx.beginPath();
+        ctx.arc(c.ax, c.ay, Math.max(c.r, px), 0, Math.PI * 2);
+        ctx.fillStyle = fl ? '#ffffff' : MAT_COLOR[c.material];
+        ctx.fill();
+        if (ov.wire) {
+          ctx.lineWidth = px;
+          ctx.strokeStyle = '#ff00aa';
+          ctx.stroke();
+        }
+        continue;
+      }
       ctx.beginPath();
       ctx.moveTo(c.ax, c.ay);
       ctx.lineTo(c.bx, c.by);
