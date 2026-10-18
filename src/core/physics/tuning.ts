@@ -16,6 +16,8 @@ export interface Tuning {
   /** Decay rate of spin about the vertical axis (1/s). */
   spinDamping: number;
   maxBallSpeed: number;
+  /** RMS of the random cabinet vibration felt by the ball (m/s²). Breaks perfect balances. */
+  tableVibration: number;
 
   /** Moment of inertia of flipper + linkage (kg·m²). */
   flipperInertia: number;
@@ -62,9 +64,10 @@ export const DEFAULT_TUNING: Tuning = {
   ballRadius: 0.0135,
   ballMass: 0.08,
   floorFriction: 0.15,
-  rollingResistance: 0.008,
+  rollingResistance: 0.004,
   spinDamping: 0.6,
   maxBallSpeed: 12,
+  tableVibration: 0.3,
 
   // Effective inertia includes the coil plunger and linkage, which is why it is
   // much larger than the bat alone. Stroke ≈ 30 ms, return ≈ 50 ms.
@@ -132,6 +135,7 @@ export const TUNING_SPECS: TuningSpec[] = [
   { key: 'floorFriction', label: 'Floor slide friction', min: 0, max: 0.6, step: 0.005, group: 'Ball' },
   { key: 'rollingResistance', label: 'Rolling resistance', min: 0, max: 0.05, step: 0.0005, group: 'Ball' },
   { key: 'spinDamping', label: 'Spin damping (1/s)', min: 0, max: 5, step: 0.05, group: 'Ball' },
+  { key: 'tableVibration', label: 'Cabinet vibration (m/s²)', min: 0, max: 1, step: 0.01, group: 'Ball' },
   { key: 'flipperInertia', label: 'Flipper inertia (kg·m²)', min: 2e-4, max: 50e-4, step: 0.5e-5, group: 'Flippers' },
   { key: 'flipperCoilTorque', label: 'Coil torque (N·m)', min: 0.2, max: 10, step: 0.05, group: 'Flippers' },
   { key: 'flipperHoldTorque', label: 'Hold torque (N·m)', min: 0, max: 5, step: 0.05, group: 'Flippers' },

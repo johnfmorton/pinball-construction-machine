@@ -22,6 +22,7 @@ import {
 } from '../table/format.ts';
 import { rayCapsule, segmentDistance, taperedCapsuleDistance, type Hit } from './geometry.ts';
 import type { Tuning } from './tuning.ts';
+import { Rng } from '../math/rng.ts';
 
 export const STEP = 0.001; // seconds per physics step (1000 Hz)
 const SLOP = 1e-5; // contact tolerance (m)
@@ -164,7 +165,11 @@ export class World {
   private hit: Hit = { t: 0, nx: 0, ny: 0 };
   private dist = { d: 0, nx: 0, ny: 0 };
 
-  constructor(table: TableDef, tuning: Tuning) {
+  /** Seeded noise source for cabinet vibration (deterministic per game). */
+  private rng: Rng;
+
+  constructor(table: TableDef, tuning: Tuning, seed = 1) {
+    this.rng = new Rng(seed ^ 0x9e3779b9);
     this.table = table;
     this.tuning = { ...tuning };
     this.materials = { ...DEFAULT_MATERIALS };
@@ -443,6 +448,7 @@ export class World {
       if (!b.active) continue;
       b.vy += gAlong * h;
       this.floorFriction(b, gNormal, h);
+      this.vibrate(b, h);
       this.moveBall(b, h);
       this.depenetrate(b);
       // speed limit (safety net)
@@ -498,6 +504,22 @@ export class World {
       b.wx -= dvy / R;
     }
     b.wz *= 1 - T.spinDamping * h;
+  }
+
+  /**
+   * A real cabinet is never perfectly still (coils, hum, the floor, the
+   * player). This tiny random acceleration is what stops a ball from ever
+   * balancing on the top of a post or a bumper the way a perfectly still
+   * simulation would allow. It's seeded, so replays stay exact. Applied after
+   * rolling resistance so it can't be cancelled within the same step.
+   */
+  private vibrate(b: Ball, h: number): void {
+    const a = this.tuning.tableVibration;
+    if (a <= 0) return;
+    // uniform in [-1, 1] scaled to the requested RMS (uniform RMS = 1/√3)
+    const k = a * 1.7320508075688772 * h;
+    b.vx += (this.rng.next() * 2 - 1) * k;
+    b.vy += (this.rng.next() * 2 - 1) * k;
   }
 
   // ---------------------------------------------------------------- CCD move
@@ -760,7 +782,10 @@ export class World {
     const T = this.tuning;
     switch (c.behavior) {
       case 'bumper':
-        if (!this.tilted && speed >= T.bumperThreshold && this.stepCount - c.lastFire > 30) {
+        // A pop bumper's skirt switch closes on any real hit, and also when a
+        // ball merely rests on it (speed below restingSpeed), so a bumper can
+        // never hold a ball. Only a glancing graze in between doesn't fire.
+        if (!this.tilted && (speed >= T.bumperThreshold || speed < T.restingSpeed) && this.stepCount - c.lastFire > 30) {
           c.lastFire = this.stepCount;
           const k = Number.isNaN(c.kick) ? T.bumperKick : c.kick;
           b.vx += nx * k;

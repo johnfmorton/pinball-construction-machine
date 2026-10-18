@@ -14,7 +14,7 @@ A standard ball is 27 mm across (`ballRadius` 0.0135) and weighs 80 g.
 
 1. **Flippers.** Each flipper integrates its swing from coil torque (while swinging up), hold torque (at end of stroke), or return-spring torque (released). End stops clamp the swing with a small bounce.
 2. **Plunger.** While held, it retracts at a fixed speed; when released, a spring drives it back and it carries the ball with it.
-3. **Ball forces.** Gravity, then floor friction: the ball carries a 3D angular velocity, and the contact point's slip against the playfield is driven to zero by kinetic friction. A ball that's thrown or bounced *skids*, then starts rolling. Rolling resistance and spin damping bleed off energy slowly.
+3. **Ball forces.** Gravity, then floor friction, then cabinet vibration: the ball carries a 3D angular velocity, and the contact point's slip against the playfield is driven to zero by kinetic friction. A ball that's thrown or bounced *skids*, then starts rolling. Rolling resistance and spin damping bleed off energy slowly. Finally a tiny random acceleration (`tableVibration`, 0.3 m/s² RMS) stands in for a real cabinet that is never still: coils, hum, the floor, the player. Without it a ball could balance on the very top of a post, because rolling resistance holds it within a hair of the balance point. The noise comes from the seeded RNG, so replays stay exact.
 4. **Continuous collision.** The ball moves along its path, stopping at the earliest contact:
    - static parts (walls, posts, bumpers, slings, targets) are all capsules, tested with exact swept-circle math;
    - the plunger is a capsule tested in its own moving frame;
@@ -31,7 +31,7 @@ Every contact uses the same model:
 - **Restitution** falls off with impact speed, like real rubber: `e = elasticity / (1 + falloff·|vn|)`. Impacts slower than `restingSpeed` don't bounce at all, which is what lets balls settle.
 - **Friction** is Coulomb-limited and acts at the contact point, so it changes both the ball's velocity and its spin (`wz`, "english"). The 7/2 factor in the tangential effective mass is the solid-sphere result.
 - **Flippers have mass.** The flipper is a rigid body with inertia, so a hard hit pushes it back, and a ball resting on a moving flipper is carried by it. When the flipper sits against a stop and the coil (or return spring) can hold it there, it behaves as immovable. That distinction is what makes cradling stable while still letting a heavy hit deflect a held flipper.
-- **Kickers.** Pop bumpers add speed along the contact normal; slingshots add speed along their face normal, and only for a real hit on the rubber face.
+- **Kickers.** Pop bumpers add speed along the contact normal, and fire on a ball merely resting on the skirt as well as on a real hit (only a glancing graze doesn't fire), so a bumper can never hold a ball; slingshots add speed along their face normal, and only for a real hit on the rubber face.
 
 ## Determinism
 

@@ -75,7 +75,7 @@ export class Simulation {
     this.table = table;
     this.seed = seed;
     this.rng = new Rng(seed);
-    this.world = new World(table, tuning);
+    this.world = new World(table, tuning, seed);
     for (const p of table.parts) {
       this.parts.set(p.id, p);
       if (p.group) {
@@ -161,7 +161,7 @@ export class Simulation {
   // ------------------------------------------------------------- game flow
 
   private resetWorld(): void {
-    this.world = new World(this.table, this.world.tuning);
+    this.world = new World(this.table, this.world.tuning, this.seed);
     this.rng = new Rng(this.seed);
     this.inputs.length = 0;
     this.timers = [];

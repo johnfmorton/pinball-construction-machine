@@ -199,7 +199,7 @@ export const DEFAULT_MATERIALS: Record<MaterialName, MaterialDef> = {
 const DEFAULT_TUNING_KEYS: Record<string, true> = Object.fromEntries(
   [
     'gravity', 'slopeOverride', 'ballRadius', 'ballMass', 'floorFriction', 'rollingResistance', 'spinDamping',
-    'maxBallSpeed', 'flipperInertia', 'flipperCoilTorque', 'flipperHoldTorque', 'flipperReturnTorque',
+    'maxBallSpeed', 'tableVibration', 'flipperInertia', 'flipperCoilTorque', 'flipperHoldTorque', 'flipperReturnTorque',
     'flipperStopBounce', 'bumperKick', 'slingThreshold', 'slingKick', 'bumperThreshold', 'plungerMass',
     'plungerSpring', 'plungerPullSpeed', 'nudgeStrength', 'tiltPerNudge', 'tiltDecay', 'tiltWarning',
     'tiltThreshold', 'restingSpeed', 'elasticityScale', 'frictionScale',
