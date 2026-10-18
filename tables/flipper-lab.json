@@ -1,0 +1,250 @@
+{
+  "format": "pcm-table",
+  "version": 1,
+  "meta": {
+    "name": "Flipper Lab",
+    "author": "Pinball Construction Machine",
+    "description": "Flippers and slings only. Drop balls with the mouse to test shots."
+  },
+  "dimensions": {
+    "width": 0.51,
+    "length": 1.07,
+    "slope": 6.5
+  },
+  "rules": {
+    "ballsPerGame": 99,
+    "ballSave": 0
+  },
+  "parts": [
+    {
+      "id": "outer-wall",
+      "type": "wall",
+      "thickness": 0.012,
+      "height": 0.06,
+      "material": "wood",
+      "path": {
+        "start": [
+          -0.006,
+          1.08
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              -0.006,
+              0.28
+            ]
+          },
+          {
+            "op": "cubic",
+            "c1": [
+              -0.006,
+              -0.04
+            ],
+            "c2": [
+              0.516,
+              -0.04
+            ],
+            "to": [
+              0.516,
+              0.28
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.516,
+              1.08
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bottom-wall",
+      "type": "wall",
+      "thickness": 0.012,
+      "height": 0.05,
+      "material": "wood",
+      "path": {
+        "start": [
+          -0.006,
+          1.076
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.516,
+              1.076
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "lab-right-wall",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.05,
+      "material": "wood",
+      "path": {
+        "start": [
+          0.475,
+          0.25
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.475,
+              1.08
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "flipper-left",
+      "type": "flipper",
+      "side": "left",
+      "input": "left",
+      "pivot": [
+        0.15,
+        0.925
+      ],
+      "length": 0.072,
+      "baseRadius": 0.0095,
+      "tipRadius": 0.005,
+      "restAngle": 30,
+      "stroke": 55
+    },
+    {
+      "id": "guide-left",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.035,
+          0.68
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.035,
+              0.835
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.14,
+              0.905
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sling-left",
+      "type": "slingshot",
+      "a": [
+        0.075,
+        0.69
+      ],
+      "b": [
+        0.13,
+        0.85
+      ],
+      "c": [
+        0.075,
+        0.815
+      ],
+      "points": 10
+    },
+    {
+      "id": "flipper-right",
+      "type": "flipper",
+      "side": "right",
+      "input": "right",
+      "pivot": [
+        0.322,
+        0.925
+      ],
+      "length": 0.072,
+      "baseRadius": 0.0095,
+      "tipRadius": 0.005,
+      "restAngle": 150,
+      "stroke": 55
+    },
+    {
+      "id": "guide-right",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.437,
+          0.68
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.437,
+              0.835
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.332,
+              0.905
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sling-right",
+      "type": "slingshot",
+      "a": [
+        0.397,
+        0.69
+      ],
+      "b": [
+        0.342,
+        0.85
+      ],
+      "c": [
+        0.397,
+        0.815
+      ],
+      "points": 10
+    },
+    {
+      "id": "drain",
+      "type": "drain",
+      "pos": [
+        0.236,
+        1.045
+      ],
+      "halfSize": [
+        0.236,
+        0.03
+      ]
+    },
+    {
+      "id": "ball-start",
+      "type": "ballStart",
+      "pos": [
+        0.08,
+        0.6
+      ]
+    }
+  ]
+}

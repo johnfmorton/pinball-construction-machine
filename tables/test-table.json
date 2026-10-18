@@ -1,0 +1,553 @@
+{
+  "format": "pcm-table",
+  "version": 1,
+  "meta": {
+    "name": "Phase 0 Test Table",
+    "author": "Pinball Construction Machine",
+    "description": "Hand-built table for physics tuning."
+  },
+  "dimensions": {
+    "width": 0.51,
+    "length": 1.07,
+    "slope": 6.5
+  },
+  "rules": {
+    "ballsPerGame": 3,
+    "ballSave": 8
+  },
+  "parts": [
+    {
+      "id": "outer-wall",
+      "type": "wall",
+      "thickness": 0.012,
+      "height": 0.06,
+      "material": "wood",
+      "path": {
+        "start": [
+          -0.006,
+          1.08
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              -0.006,
+              0.28
+            ]
+          },
+          {
+            "op": "cubic",
+            "c1": [
+              -0.006,
+              -0.04
+            ],
+            "c2": [
+              0.516,
+              -0.04
+            ],
+            "to": [
+              0.516,
+              0.28
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.516,
+              1.08
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bottom-wall",
+      "type": "wall",
+      "thickness": 0.012,
+      "height": 0.05,
+      "material": "wood",
+      "path": {
+        "start": [
+          -0.006,
+          1.076
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.516,
+              1.076
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "shooter-lane-wall",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.05,
+      "material": "wood",
+      "path": {
+        "start": [
+          0.475,
+          0.36
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.475,
+              1.08
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plunger",
+      "type": "plunger",
+      "pos": [
+        0.494,
+        1
+      ],
+      "width": 0.026,
+      "maxPull": 0.06
+    },
+    {
+      "id": "ball-start",
+      "type": "ballStart",
+      "pos": [
+        0.494,
+        0.983
+      ]
+    },
+    {
+      "id": "flipper-left",
+      "type": "flipper",
+      "side": "left",
+      "input": "left",
+      "pivot": [
+        0.15,
+        0.925
+      ],
+      "length": 0.072,
+      "baseRadius": 0.0095,
+      "tipRadius": 0.005,
+      "restAngle": 30,
+      "stroke": 55
+    },
+    {
+      "id": "guide-left",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.035,
+          0.68
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.035,
+              0.835
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.14,
+              0.905
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sling-left",
+      "type": "slingshot",
+      "a": [
+        0.075,
+        0.69
+      ],
+      "b": [
+        0.13,
+        0.85
+      ],
+      "c": [
+        0.075,
+        0.815
+      ],
+      "points": 10
+    },
+    {
+      "id": "flipper-right",
+      "type": "flipper",
+      "side": "right",
+      "input": "right",
+      "pivot": [
+        0.322,
+        0.925
+      ],
+      "length": 0.072,
+      "baseRadius": 0.0095,
+      "tipRadius": 0.005,
+      "restAngle": 150,
+      "stroke": 55
+    },
+    {
+      "id": "guide-right",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.437,
+          0.68
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.437,
+              0.835
+            ]
+          },
+          {
+            "op": "line",
+            "to": [
+              0.332,
+              0.905
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sling-right",
+      "type": "slingshot",
+      "a": [
+        0.397,
+        0.69
+      ],
+      "b": [
+        0.342,
+        0.85
+      ],
+      "c": [
+        0.397,
+        0.815
+      ],
+      "points": 10
+    },
+    {
+      "id": "drain",
+      "type": "drain",
+      "pos": [
+        0.236,
+        1.045
+      ],
+      "halfSize": [
+        0.236,
+        0.03
+      ]
+    },
+    {
+      "id": "bumper-1",
+      "type": "bumper",
+      "pos": [
+        0.16,
+        0.28
+      ],
+      "radius": 0.028,
+      "points": 100
+    },
+    {
+      "id": "bumper-2",
+      "type": "bumper",
+      "pos": [
+        0.31,
+        0.28
+      ],
+      "radius": 0.028,
+      "points": 100
+    },
+    {
+      "id": "bumper-3",
+      "type": "bumper",
+      "pos": [
+        0.235,
+        0.37
+      ],
+      "radius": 0.028,
+      "points": 100
+    },
+    {
+      "id": "toplane-guide-1",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.17,
+          0.11
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.17,
+              0.165
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "toplane-guide-2",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.215,
+          0.11
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.215,
+              0.165
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "toplane-guide-3",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.26,
+          0.11
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.26,
+              0.165
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "toplane-guide-4",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.025,
+      "material": "metal",
+      "path": {
+        "start": [
+          0.305,
+          0.11
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.305,
+              0.165
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "toplane-1",
+      "type": "rollover",
+      "pos": [
+        0.1925,
+        0.14
+      ],
+      "radius": 0.012,
+      "points": 500,
+      "group": "toplanes"
+    },
+    {
+      "id": "toplane-2",
+      "type": "rollover",
+      "pos": [
+        0.2375,
+        0.14
+      ],
+      "radius": 0.012,
+      "points": 500,
+      "group": "toplanes"
+    },
+    {
+      "id": "toplane-3",
+      "type": "rollover",
+      "pos": [
+        0.2825,
+        0.14
+      ],
+      "radius": 0.012,
+      "points": 500,
+      "group": "toplanes"
+    },
+    {
+      "id": "drop-1",
+      "type": "dropTarget",
+      "pos": [
+        0.44,
+        0.46
+      ],
+      "angle": 180,
+      "width": 0.026,
+      "points": 250,
+      "group": "drops"
+    },
+    {
+      "id": "drop-2",
+      "type": "dropTarget",
+      "pos": [
+        0.44,
+        0.49
+      ],
+      "angle": 180,
+      "width": 0.026,
+      "points": 250,
+      "group": "drops"
+    },
+    {
+      "id": "drop-3",
+      "type": "dropTarget",
+      "pos": [
+        0.44,
+        0.52
+      ],
+      "angle": 180,
+      "width": 0.026,
+      "points": 250,
+      "group": "drops"
+    },
+    {
+      "id": "drop-backstop",
+      "type": "wall",
+      "thickness": 0.006,
+      "height": 0.05,
+      "material": "wood",
+      "path": {
+        "start": [
+          0.455,
+          0.43
+        ],
+        "cmds": [
+          {
+            "op": "line",
+            "to": [
+              0.455,
+              0.55
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "standup-1",
+      "type": "standupTarget",
+      "pos": [
+        0.02,
+        0.45
+      ],
+      "angle": 0,
+      "width": 0.024,
+      "points": 300
+    },
+    {
+      "id": "standup-2",
+      "type": "standupTarget",
+      "pos": [
+        0.02,
+        0.49
+      ],
+      "angle": 0,
+      "width": 0.024,
+      "points": 300
+    },
+    {
+      "id": "post-1",
+      "type": "post",
+      "pos": [
+        0.1,
+        0.6
+      ],
+      "radius": 0.008,
+      "material": "postRubber",
+      "points": 10
+    },
+    {
+      "id": "post-2",
+      "type": "post",
+      "pos": [
+        0.37,
+        0.62
+      ],
+      "radius": 0.008,
+      "material": "postRubber",
+      "points": 10
+    },
+    {
+      "id": "outlane-left",
+      "type": "rollover",
+      "pos": [
+        0.016,
+        0.88
+      ],
+      "radius": 0.012,
+      "points": 1000
+    },
+    {
+      "id": "inlane-left",
+      "type": "rollover",
+      "pos": [
+        0.0545,
+        0.76
+      ],
+      "radius": 0.012,
+      "points": 500
+    },
+    {
+      "id": "outlane-right",
+      "type": "rollover",
+      "pos": [
+        0.456,
+        0.88
+      ],
+      "radius": 0.012,
+      "points": 1000
+    },
+    {
+      "id": "inlane-right",
+      "type": "rollover",
+      "pos": [
+        0.4175,
+        0.76
+      ],
+      "radius": 0.012,
+      "points": 500
+    }
+  ]
+}
