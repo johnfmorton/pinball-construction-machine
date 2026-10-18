@@ -11,7 +11,9 @@ export type ToWorker =
   | { type: 'stepOnce'; steps: number }
   | { type: 'timeScale'; scale: number }
   | { type: 'getReplay' }
-  | { type: 'playReplay'; replay: Replay };
+  | { type: 'playReplay'; replay: Replay }
+  /** Stop any replay and start over with a fresh table in live mode. */
+  | { type: 'reset'; tuning: Tuning };
 
 export interface BallSnap {
   id: number;

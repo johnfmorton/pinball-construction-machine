@@ -391,6 +391,17 @@ function download(name: string, data: unknown): void {
 
 $('btn-replay-save').onclick = () => send({ type: 'getReplay' });
 
+$('btn-replay-clear').onclick = () => {
+  send({ type: 'reset', tuning });
+  renderer.clearTrails();
+  $('replay-status').textContent = '';
+  lastLaunch = 0;
+  lastImpact = 0;
+  peakTip = 0;
+  speedHistory.length = 0;
+  (document.activeElement as HTMLElement | null)?.blur();
+};
+
 $<HTMLInputElement>('replay-file').onchange = async (e) => {
   const f = (e.target as HTMLInputElement).files?.[0];
   if (!f) return;

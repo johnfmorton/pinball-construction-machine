@@ -140,6 +140,14 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       case 'getReplay':
         if (sim) post({ type: 'replay', replay: makeReplay(sim) });
         break;
+      case 'reset':
+        if (sim) sim = new Simulation(sim.table, msg.tuning, sim.seed);
+        mode = 'live';
+        replay = null;
+        replayCursor = 0;
+        acc = 0;
+        events = [];
+        break;
       case 'playReplay': {
         if (!sim) break;
         const table = sim.table;
