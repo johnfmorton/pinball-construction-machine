@@ -5,27 +5,20 @@
 import testTable from '../../tables/test-table.json';
 import type { Vec2 } from '../core/math/bezier.ts';
 import { validateTable, type Part, type TableDef } from '../core/table/format.ts';
+import { DRAFT_KEY, loadDraft, saveDraft } from '../shared/tables.ts';
 import { History, uniqueId } from './model/history.ts';
 import { anchor, mirrorAxis, mirrorPart, partBounds, rotatePart, scalePart, translatePart, unionBounds, type Bounds } from './model/parts.ts';
 import type { Guide } from './model/snap.ts';
 
-export const DRAFT_KEY = 'pcm.editor.draft';
+export { DRAFT_KEY };
 
-function loadDraft(): TableDef {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (raw) {
-      const t = JSON.parse(raw) as TableDef;
-      if (!validateTable(t).length) return t;
-    }
-  } catch {
-    /* no storage or bad draft: start from the test table */
-  }
-  return structuredClone(testTable as TableDef);
+function initialTable(): TableDef {
+  // no draft yet (or a bad one): start from the test table
+  return loadDraft() ?? structuredClone(testTable as TableDef);
 }
 
 export class EditorState {
-  table = $state.raw<TableDef>(loadDraft());
+  table = $state.raw<TableDef>(initialTable());
   selection = $state.raw<string[]>([]);
   hover = $state<string | null>(null);
   guides = $state.raw<Guide[]>([]);
@@ -207,6 +200,23 @@ export class EditorState {
     this.commit({ ...this.table, parts: this.table.parts.map((p) => (p.id === id ? next : p)) }, label);
   }
 
+  /**
+   * Another tab (the Physics Lab's "Save to table") rewrote the draft. Adopt it
+   * as an undoable edit so this tab's next autosave doesn't overwrite it.
+   */
+  adoptExternalDraft(raw: string | null): void {
+    if (!raw || raw === JSON.stringify(this.table)) return;
+    try {
+      const t = JSON.parse(raw) as TableDef;
+      if (validateTable(t).length) return;
+      this.commit(t, 'tuning from Physics Lab');
+      this.pruneSelection();
+      this.status = 'Physics settings updated from the Physics Lab';
+    } catch {
+      /* ignore a malformed write */
+    }
+  }
+
   loadTable(t: TableDef, label = 'open table'): void {
     this.commit(structuredClone(t), label);
     this.selection = [];
@@ -222,11 +232,7 @@ export class EditorState {
   private changed(): void {
     clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(this.table));
-      } catch {
-        /* storage full or blocked: the draft just isn't kept */
-      }
+      saveDraft(this.table); // storage full or blocked: the draft just isn't kept
     }, 300);
   }
 }

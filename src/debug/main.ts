@@ -2,8 +2,6 @@
  * Physics Lab: the Phase 0 tuning harness. Hosts the physics worker, the
  * debug renderer, live tuning sliders, telemetry, and replay tools.
  */
-import testTable from '../../tables/test-table.json';
-import flipperLab from '../../tables/flipper-lab.json';
 import { validateTable, type TableDef } from '../core/table/format.ts';
 import { DEFAULT_TUNING, TUNING_SPECS, tableTuning, tuningDiff, type Tuning } from '../core/physics/tuning.ts';
 import type { Replay } from '../core/sim/replay.ts';
@@ -11,11 +9,10 @@ import type { InputKind } from '../core/sim/simulation.ts';
 import type { FromWorker, Snapshot, Stats, ToWorker } from '../worker/protocol.ts';
 import { Renderer, type Overlays } from './renderer.ts';
 import { Sfx } from './sfx.ts';
+import { DRAFT_KEY, availableTables, fillTableSelect, linkWithTable, loadDraft, saveDraft, tableFromQuery } from '../shared/tables.ts';
 
-const TABLES: Record<string, TableDef> = {
-  test: testTable as TableDef,
-  lab: flipperLab as TableDef,
-};
+// built-in tables plus the editor's draft, so the lab can tune what you're building
+const TABLES: Record<string, TableDef> = availableTables();
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -42,7 +39,15 @@ function save(key: string, value: unknown): void {
 
 let tuning: Tuning = { ...DEFAULT_TUNING };
 const overlays: Overlays = load('pcm.overlays', { trail: true, vectors: true, wire: false, grid: false });
-let table: TableDef = TABLES.test;
+let tableKey: string = tableFromQuery(TABLES) ?? (() => {
+  try {
+    return localStorage.getItem('pcm.lab.table') ?? 'test';
+  } catch {
+    return 'test';
+  }
+})();
+if (!TABLES[tableKey]) tableKey = 'test';
+let table: TableDef = TABLES[tableKey];
 let snap: Snapshot | null = null;
 let stats: Stats = { stepsPerSecond: 0, stepMicros: 0 };
 let paused = false;
@@ -60,7 +65,8 @@ const sfx = new Sfx();
 
 /** Per-table tuning is remembered in this browser under the table's name. */
 function tuningKey(t: TableDef): string {
-  return `pcm.tuning.${t.meta.name}`;
+  // the draft gets its own slot so it doesn't share sliders with a same-named table
+  return tableKey === 'draft' ? 'pcm.tuning.draft' : `pcm.tuning.${t.meta.name}`;
 }
 
 function loadTable(t: TableDef): void {
@@ -320,8 +326,19 @@ for (const [id, key] of [
 }
 syncOverlayChecks();
 
+fillTableSelect($<HTMLSelectElement>('table-select'), TABLES);
+$<HTMLSelectElement>('table-select').value = tableKey;
+linkWithTable($<HTMLAnchorElement>('link-play'), '/', tableKey);
 $<HTMLSelectElement>('table-select').onchange = (e) => {
-  loadTable(TABLES[(e.target as HTMLSelectElement).value]);
+  tableKey = (e.target as HTMLSelectElement).value;
+  try {
+    localStorage.setItem('pcm.lab.table', tableKey);
+  } catch {
+    /* fine */
+  }
+  history.replaceState(null, '', tableKey === 'test' ? location.pathname : `?table=${tableKey}`);
+  linkWithTable($<HTMLAnchorElement>('link-play'), '/', tableKey);
+  loadTable(TABLES[tableKey]);
   (e.target as HTMLSelectElement).blur();
 };
 
@@ -384,9 +401,17 @@ $('btn-tune-save').onclick = () => {
   const next: TableDef = { ...table };
   if (Object.keys(physics).length) next.physics = physics;
   else delete next.physics;
-  // keep the in-memory copy in step with the downloaded file for this session
+  // keep the in-memory copy in step with the saved table for this session
   const sel = $<HTMLSelectElement>('table-select');
   if (TABLES[sel.value] === table) TABLES[sel.value] = next;
+  if (sel.value === 'draft') {
+    // the editor's draft lives in this browser: write the tuning straight back
+    // into it (an open editor picks it up) instead of downloading a file
+    saveDraft(next);
+    loadTable(next);
+    showBanner('Saved to the editor draft · game restarted');
+    return;
+  }
   const slug = next.meta.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   downloadPretty(`${slug}.json`, next);
   loadTable(next);
@@ -458,6 +483,7 @@ $<HTMLInputElement>('table-file').onchange = async (e) => {
     const t = JSON.parse(await f.text());
     const issues = validateTable(t);
     if (issues.length) throw new Error(issues.map((i) => (i.partId ? `${i.partId}: ` : '') + i.message).join('; '));
+    tableKey = 'custom';
     loadTable(t as TableDef);
     $('table-status').textContent = `Loaded “${(t as TableDef).meta.name}”.`;
   } catch (err) {
@@ -539,6 +565,23 @@ function frame(): void {
   updateHud();
   requestAnimationFrame(frame);
 }
+
+// the editor autosaves its draft; when it changes in another tab, follow along
+window.addEventListener('storage', (e) => {
+  if (e.key !== DRAFT_KEY) return;
+  const draft = loadDraft();
+  if (!draft) return;
+  const hadDraft = !!TABLES.draft;
+  TABLES.draft = draft;
+  if (!hadDraft) {
+    fillTableSelect($<HTMLSelectElement>('table-select'), TABLES);
+    $<HTMLSelectElement>('table-select').value = tableKey in TABLES ? tableKey : 'test';
+  }
+  if (tableKey === 'draft') {
+    loadTable(draft);
+    showBanner('Editor draft changed · reloaded');
+  }
+});
 
 window.addEventListener('resize', () => renderer.resize());
 renderer.resize();

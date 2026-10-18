@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import testTable from '../../tables/test-table.json';
   import type { TableDef } from '../core/table/format.ts';
-  import { EditorState } from './store.svelte.ts';
+  import { DRAFT_KEY, EditorState } from './store.svelte.ts';
   import { EditorCanvas } from './canvas.ts';
   import Inspector from './Inspector.svelte';
   import { TYPE_LABELS, TYPE_ORDER } from './labels.ts';
@@ -17,6 +17,10 @@
   onMount(() => {
     view = new EditorCanvas(canvasEl, ed);
     if (import.meta.env.DEV) (window as unknown as { __ed: unknown }).__ed = { ed, view };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DRAFT_KEY) ed.adoptExternalDraft(e.newValue);
+    };
+    window.addEventListener('storage', onStorage);
     const t = setInterval(() => {
       const c = view?.cursor;
       cursorText = c ? `${(c[0] * 1000).toFixed(1)}, ${(c[1] * 1000).toFixed(1)} mm` : '';
@@ -24,6 +28,7 @@
     }, 100);
     return () => {
       clearInterval(t);
+      window.removeEventListener('storage', onStorage);
       view?.destroy();
     };
   });
@@ -67,8 +72,8 @@
       <button onclick={() => (showHelp = !showHelp)} class:on={showHelp}>Shortcuts</button>
       <button onclick={resetToTest} title="Replace the draft with the test table (undoable)">Reset</button>
       <button class="play" onclick={playDraft} title="Open this table in the 3D player">▶ Play</button>
-      <a href="/" class="link">3D table</a>
-      <a href="/lab.html" class="link">Lab</a>
+      <a href="/?table=draft" class="link" title="This draft in the 3D player">3D table</a>
+      <a href="/lab.html?table=draft" class="link" title="Tune this draft's physics">Lab</a>
     </div>
   </header>
 

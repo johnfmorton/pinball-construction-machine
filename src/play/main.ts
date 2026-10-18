@@ -2,17 +2,18 @@
  * The 3D play page. The physics worker is the same one the lab uses; this page
  * only renders its snapshots in 3D and forwards inputs.
  */
-import testTable from '../../tables/test-table.json';
-import flipperLab from '../../tables/flipper-lab.json';
 import { tableTuning } from '../core/physics/tuning.ts';
-import { validateTable, type TableDef, type ThemeName } from '../core/table/format.ts';
+import type { TableDef, ThemeName } from '../core/table/format.ts';
 import type { FromWorker, Snapshot, ToWorker } from '../worker/protocol.ts';
 import { Stage, type Quality } from '../render3d/stage.ts';
 import { Table3D } from '../render3d/table3d.ts';
 import { Sfx } from '../debug/sfx.ts';
 import { ButtonState, NUDGE_KEYS } from '../shared/keys.ts';
 
-const TABLES: Record<string, TableDef> = { test: testTable as TableDef, lab: flipperLab as TableDef };
+import { DRAFT_KEY, availableTables, fillTableSelect, linkWithTable, loadDraft, tableFromQuery } from '../shared/tables.ts';
+
+// built-in tables plus the editor's draft (the editor's ▶ Play opens /?table=draft)
+const TABLES: Record<string, TableDef> = availableTables();
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 function stored<T extends string>(key: string, fallback: T): T {
@@ -38,18 +39,7 @@ const sfx = new Sfx();
 const worker = new Worker(new URL('../worker/physics.worker.ts', import.meta.url), { type: 'module' });
 const send = (m: ToWorker) => worker.postMessage(m);
 
-// the editor's ▶ Play opens /?table=draft with its autosaved draft
-try {
-  const raw = localStorage.getItem('pcm.editor.draft');
-  if (raw) {
-    const draft = JSON.parse(raw) as TableDef;
-    if (!validateTable(draft).length) TABLES.draft = draft;
-  }
-} catch {
-  /* no draft */
-}
-const fromUrl = new URLSearchParams(location.search).get('table');
-let tableKey: string = fromUrl && TABLES[fromUrl] ? fromUrl : stored<string>('pcm.play.table', 'test');
+let tableKey: string = tableFromQuery(TABLES) ?? stored<string>('pcm.play.table', 'test');
 if (!TABLES[tableKey]) tableKey = 'test';
 let theme = stored<ThemeName>('pcm.play.theme', 'midnight');
 let qualityChoice = stored<Quality | 'auto'>('pcm.play.quality', 'auto');
@@ -69,18 +59,21 @@ function loadTable(): void {
   send({ type: 'load', table: base, tuning: tableTuning(base), seed: 1 });
 }
 
-if (TABLES.draft) {
-  const opt = document.createElement('option');
-  opt.value = 'draft';
-  opt.textContent = 'Editor draft';
-  $<HTMLSelectElement>('table-select').appendChild(opt);
+fillTableSelect($<HTMLSelectElement>('table-select'), TABLES);
+/** The corner links carry the current table, so the lab and editor open it too. */
+function syncLinks(): void {
+  linkWithTable($<HTMLAnchorElement>('link-lab'), '/lab.html', tableKey);
+  $<HTMLAnchorElement>('link-editor').href = '/editor.html';
 }
+syncLinks();
 $<HTMLSelectElement>('table-select').value = tableKey;
 $<HTMLSelectElement>('theme-select').value = theme;
 $<HTMLSelectElement>('quality-select').value = qualityChoice;
 $<HTMLSelectElement>('table-select').onchange = (e) => {
   tableKey = (e.target as HTMLSelectElement).value;
   store('pcm.play.table', tableKey);
+  history.replaceState(null, '', tableKey === 'test' ? location.pathname : `?table=${tableKey}`);
+  syncLinks();
   (e.target as HTMLElement).blur();
   loadTable();
 };
@@ -264,6 +257,20 @@ function frame(now: number): void {
 
 window.addEventListener('resize', () => stage.resize());
 if (import.meta.env.DEV) (window as unknown as { __pcm: unknown }).__pcm = { stage };
+// keep up with the editor: when its draft changes in another tab, pick it up
+window.addEventListener('storage', (e) => {
+  if (e.key !== DRAFT_KEY) return;
+  const draft = loadDraft();
+  if (!draft) return;
+  const hadDraft = !!TABLES.draft;
+  TABLES.draft = draft;
+  if (!hadDraft) {
+    fillTableSelect($<HTMLSelectElement>('table-select'), TABLES);
+    $<HTMLSelectElement>('table-select').value = tableKey;
+  }
+  if (tableKey === 'draft') loadTable();
+});
+
 loadTable();
 stage.resize();
 requestAnimationFrame(frame);
