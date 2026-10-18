@@ -44,3 +44,19 @@ describe('determinism', () => {
     expect(runReplay(t, makeReplay(live)).ok).toBe(false);
   });
 });
+
+describe('replay scope', () => {
+  it('a replay starts at Start Game, not at page load', () => {
+    const s = sim('test-table');
+    run(s, 5000); // idle time before the game
+    s.input('startGame');
+    s.input('plunger', 1);
+    run(s, 400);
+    s.input('plunger', 0);
+    run(s, 3000, bot);
+    const replay = makeReplay(s);
+    expect(replay.steps).toBe(3400);
+    expect(replay.inputs[0]).toEqual([0, 'startGame']);
+    expect(runReplay(loadTable('test-table'), replay).ok).toBe(true);
+  });
+});

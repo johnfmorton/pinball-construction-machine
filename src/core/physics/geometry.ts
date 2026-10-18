@@ -145,7 +145,9 @@ export function rayCapsule(
 /**
  * Signed distance from P to a tapered capsule (convex hull of two circles):
  * base circle at pivot (rb), tip circle at pivot + u·L (rt). `u` is the unit
- * direction. Writes distance and outward normal into `out`.
+ * direction. `sinT`/`cosT` describe the tilt of the straight sides:
+ * sinT = (rb - rt) / L (positive when the tip is narrower than the base).
+ * Writes distance and outward normal into `out`.
  */
 export function taperedCapsuleDistance(
   pivX: number,

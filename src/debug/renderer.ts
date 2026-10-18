@@ -167,10 +167,12 @@ export class Renderer {
       ctx.moveTo(c.ax, c.ay);
       ctx.lineTo(c.bx, c.by);
       ctx.lineWidth = Math.max(c.r * 2, 2 * px);
-      if (off) {
-        ctx.strokeStyle = 'rgba(255,181,71,0.15)';
-      } else if (fl) {
+      if (fl) {
+        // a just-hit drop target flashes before it disappears, so the ball
+        // is never seen bouncing off empty space
         ctx.strokeStyle = '#ffffff';
+      } else if (off) {
+        ctx.strokeStyle = 'rgba(255,181,71,0.15)';
       } else if (c.behavior === 'sling') {
         ctx.strokeStyle = '#ffe08a';
       } else {
@@ -286,7 +288,7 @@ export class Renderer {
     const { ctx } = this;
     const ux = Math.cos(a);
     const uy = Math.sin(a);
-    const sinT = (rt - rb) / L;
+    const sinT = (rb - rt) / L;
     const cosT = Math.sqrt(1 - sinT * sinT);
     // tangent points on both sides
     const side = (s: number) => {

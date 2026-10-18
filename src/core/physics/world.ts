@@ -983,7 +983,9 @@ export class World {
 }
 
 function makeFlipper(p: FlipperPart): Flipper {
-  const sinT = (p.tipRadius - p.baseRadius) / p.length;
+  // Tilt of the straight sides: the surface narrows from base to tip, so the
+  // outward side normal leans toward the tip by asin((rb - rt) / L).
+  const sinT = (p.baseRadius - p.tipRadius) / p.length;
   return {
     partId: p.id,
     input: p.input ?? p.side,

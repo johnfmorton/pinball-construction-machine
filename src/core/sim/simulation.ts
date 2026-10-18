@@ -114,6 +114,9 @@ export class Simulation {
 
   /** Apply an input before the next step. Recorded for replay. */
   input(kind: InputKind, value?: number | number[]): void {
+    // A new game starts from a fresh world at step 0, so a replay contains
+    // only that game rather than everything since the page loaded.
+    if (kind === 'startGame') this.resetWorld();
     const rec: InputRecord = value === undefined ? [this.steps, kind] : [this.steps, kind, value];
     this.inputs.push(rec);
     this.applyInput(kind, value);
@@ -155,6 +158,13 @@ export class Simulation {
   }
 
   // ------------------------------------------------------------- game flow
+
+  private resetWorld(): void {
+    this.world = new World(this.table, this.world.tuning);
+    this.rng = new Rng(this.seed);
+    this.inputs.length = 0;
+    this.timers = [];
+  }
 
   private startGame(): void {
     this.state.score = 0;
