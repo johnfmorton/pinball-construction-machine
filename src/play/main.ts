@@ -10,7 +10,7 @@ import { Table3D } from '../render3d/table3d.ts';
 import { Sfx } from '../debug/sfx.ts';
 import { ButtonState, NUDGE_KEYS } from '../shared/keys.ts';
 
-import { DRAFT_KEY, availableTables, fillTableSelect, linkWithTable, loadDraft, tableFromQuery } from '../shared/tables.ts';
+import { DRAFT_KEY, availableTables, draftProblems, fillTableSelect, linkWithTable, loadDraft, tableFromQuery } from '../shared/tables.ts';
 
 // built-in tables plus the editor's draft (the editor's ▶ Play opens /?table=draft)
 const TABLES: Record<string, TableDef> = availableTables();
@@ -123,6 +123,9 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
       case 'rollover':
         table3d?.flash(ev.partId);
         if (!muted) sfx.ding();
+        break;
+      case 'gate':
+        if (!muted) sfx.gate();
         break;
       case 'flipper':
         if (ev.up && !muted) sfx.flipper();
@@ -271,6 +274,11 @@ window.addEventListener('storage', (e) => {
   if (tableKey === 'draft') loadTable();
 });
 
+// asked for the draft, but it's still missing pieces the game needs
+if (new URLSearchParams(location.search).get('table') === 'draft' && !TABLES.draft) {
+  const problems = draftProblems();
+  if (problems.length) show(`The editor draft can't be played yet: it ${problems.join(', ')}`, 6000);
+}
 loadTable();
 stage.resize();
 requestAnimationFrame(frame);

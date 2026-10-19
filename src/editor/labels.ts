@@ -9,11 +9,12 @@ export const TYPE_LABELS: Record<Part['type'], string> = {
   standupTarget: 'Standup target',
   dropTarget: 'Drop target',
   rollover: 'Rollover',
+  gate: 'One-way gate',
   drain: 'Drain',
   plunger: 'Plunger',
   ballStart: 'Ball start',
 };
 
 export const TYPE_ORDER: Part['type'][] = [
-  'flipper', 'slingshot', 'bumper', 'post', 'standupTarget', 'dropTarget', 'rollover', 'wall', 'plunger', 'ballStart', 'drain',
+  'flipper', 'slingshot', 'bumper', 'post', 'standupTarget', 'dropTarget', 'rollover', 'gate', 'wall', 'plunger', 'ballStart', 'drain',
 ];

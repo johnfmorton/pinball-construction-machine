@@ -6,8 +6,9 @@
 import { Renderer } from '../debug/renderer.ts';
 import type { Vec2 } from '../core/math/bezier.ts';
 import type { TableDef } from '../core/table/format.ts';
-import { anchor, hitTest, mirrorAxis, partBounds, partsInRect, rotatePart, scalePart, translatePart, type Bounds } from './model/parts.ts';
+import { anchor, hitTest, mirrorAxis, partBounds, partsInRect, rotatePart, scalePart, translatePart, unionBounds, type Bounds } from './model/parts.ts';
 import { snapAngle, snapPoint } from './model/snap.ts';
+import { canPlace, catalogEntry, instantiate } from './model/catalog.ts';
 import type { EditorState } from './store.svelte.ts';
 
 type Drag =
@@ -43,6 +44,9 @@ export class EditorCanvas {
     canvas.addEventListener('pointerup', this.onUp);
     canvas.addEventListener('pointercancel', this.onUp);
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
+    canvas.addEventListener('dragover', this.onDragOver);
+    canvas.addEventListener('dragleave', this.onDragLeave);
+    canvas.addEventListener('drop', this.onDrop);
     canvas.addEventListener('pointerleave', () => {
       this.cursor = null;
       this.ed.hover = null;
@@ -93,14 +97,19 @@ export class EditorCanvas {
 
   // ------------------------------------------------------------ frame
 
+  private shownPreview: unknown = null;
+
   private frame(): void {
-    if (this.shownTable !== this.ed.table) {
-      // the World rebuild re-derives true collider shapes from the table data
+    const { table, preview } = this.ed;
+    if (this.shownTable !== table || this.shownPreview !== preview) {
+      // the World rebuild re-derives true collider shapes from the table data;
+      // a palette drag shows its parts as if already placed
       const keepZoom = [this.renderer.zoom, this.renderer.panX, this.renderer.panY] as const;
-      this.renderer.setTable(this.ed.table);
+      this.renderer.setTable(preview ? { ...table, parts: [...table.parts, ...preview] } : table);
       [this.renderer.zoom, this.renderer.panX, this.renderer.panY] = keepZoom;
       this.renderer.resize();
-      this.shownTable = this.ed.table;
+      this.shownTable = table;
+      this.shownPreview = preview;
     }
     this.renderer.draw(null, OVERLAYS);
   }
@@ -189,6 +198,12 @@ export class EditorCanvas {
       ctx.arc(rx, ry, hs * 0.6, 0, Math.PI * 2);
       ctx.fillStyle = '#4fa3ff';
       ctx.fill();
+    }
+
+    // parts being dragged in from the palette
+    if (ed.preview?.length) {
+      const pb = unionBounds(ed.preview.map(partBounds));
+      if (pb) this.box(ctx, pb, 'rgba(126,231,135,0.9)', 1.5 * px, cssPx, true);
     }
 
     // smart guides
@@ -360,6 +375,64 @@ export class EditorCanvas {
       this.renderer.resize();
     }
   };
+
+  // ------------------------------------------------------------ palette drops
+
+  /** The palette parts for `key`, placed at (x, y) with the same snapping as a move. */
+  private placed(key: string, x: number, y: number, free: boolean): ReturnType<typeof instantiate> | null {
+    const ed = this.ed;
+    const entry = catalogEntry(key);
+    if (!entry || !canPlace(entry, ed.table)) return null;
+    let at: Vec2 = [x, y];
+    if (ed.snap && !free) {
+      const others = ed.table.parts.filter((p) => p.type !== 'wall' && p.type !== 'drain').map(anchor);
+      const r = snapPoint(at, { anchors: others, mirror: mirrorAxis(ed.table) }, 6 * this.m);
+      at = r.point;
+      ed.guides = r.guides;
+    } else ed.guides = [];
+    return instantiate(entry, ed.table, at);
+  }
+
+  private onDragOver = (e: DragEvent): void => {
+    const key = this.ed.dragging;
+    if (!key) return;
+    const [x, y] = this.renderer.toTable(e.clientX, e.clientY);
+    const parts = this.placed(key, x, y, e.metaKey || e.ctrlKey);
+    if (!parts) {
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+      return;
+    }
+    e.preventDefault(); // allow the drop
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    this.ed.preview = parts;
+    this.cursor = [x, y];
+  };
+
+  private onDragLeave = (): void => {
+    this.ed.preview = null;
+    this.ed.guides = [];
+  };
+
+  private onDrop = (e: DragEvent): void => {
+    e.preventDefault();
+    const parts = this.ed.preview;
+    const key = this.ed.dragging;
+    this.ed.preview = null;
+    this.ed.guides = [];
+    this.ed.dragging = null;
+    if (parts && key) this.ed.addParts(parts, `add ${catalogEntry(key)?.label.toLowerCase() ?? 'part'}`);
+    this.canvas.focus();
+  };
+
+  /** Add a palette entry in the middle of the visible table (a click instead of a drag). */
+  placeAtCenter(key: string): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const [x, y] = this.renderer.toTable(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const { width: W, length: L } = this.ed.table.dimensions;
+    const parts = this.placed(key, Math.min(W - 0.03, Math.max(0.03, x)), Math.min(L - 0.03, Math.max(0.03, y)), false);
+    this.ed.guides = [];
+    if (parts) this.ed.addParts(parts, `add ${catalogEntry(key)?.label.toLowerCase() ?? 'part'}`);
+  }
 
   // ------------------------------------------------------------ keyboard
 

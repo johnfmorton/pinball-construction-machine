@@ -40,6 +40,24 @@ interface Sling {
   flash: number;
 }
 
+/** A one-way gate's wire flap, swung open by balls passing through (visual only). */
+export interface Gate {
+  flap: THREE.Object3D;
+  /** Wire endpoints and the pass direction, in table space. */
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  nx: number;
+  ny: number;
+  /** Flap rotation sign: local rotation.x that swings the flap toward the pass direction is −sign·θ. */
+  sign: number;
+  angle: number;
+}
+
+const GATE_HINGE = 0.031; // hinge height above the playfield (m)
+const GATE_FLAP = 0.027; // flap length, hinge to bottom wire (m)
+
 export class Table3D {
   readonly group = new THREE.Group();
   readonly theme: Theme;
@@ -56,6 +74,7 @@ export class Table3D {
   private bumpers: Bumper[] = [];
   private slings: Sling[] = [];
   private targetFlash = new Map<string, number>();
+  private gates: Gate[] = [];
   private time = 0;
   /** General illumination level (dims on tilt). */
   gi = 1;
@@ -177,6 +196,40 @@ export class Table3D {
       mesh.add(face2);
       this.group.add(mesh);
       if (c.behavior === 'drop') this.drops.set(c.index, { mesh, offset: 0 });
+    });
+
+    // one-way gates: brackets, a hinge rod, and a wire flap that swings
+    this.geo.statics.forEach((c) => {
+      if (c.behavior !== 'gate') return;
+      const len = Math.hypot(c.bx - c.ax, c.by - c.ay);
+      const phi = Math.atan2(c.by - c.ay, c.bx - c.ax);
+      for (const [x, y] of [
+        [c.ax, c.ay],
+        [c.bx, c.by],
+      ]) {
+        this.add(post(x, y, 0.0022, GATE_HINGE + 0.004), M.steel);
+      }
+      this.add(barGeometry([c.ax, c.ay], [c.bx, c.by], 0.0011, GATE_HINGE), M.chrome);
+      const hinge = new THREE.Group();
+      hinge.position.set((c.ax + c.bx) / 2, GATE_HINGE, (c.ay + c.by) / 2);
+      hinge.rotation.y = -phi;
+      const flap = new THREE.Group();
+      const w = len / 2 - 0.004;
+      const rod = (x0: number, y0: number, x1: number, y1: number) => {
+        const g = new THREE.CylinderGeometry(0.0008, 0.0008, Math.hypot(x1 - x0, y1 - y0), 6);
+        g.clearGroups();
+        g.rotateZ(Math.atan2(x0 - x1, y1 - y0));
+        g.translate((x0 + x1) / 2, (y0 + y1) / 2, 0);
+        return g;
+      };
+      const wire = new THREE.Mesh(mergeInto([rod(-w, 0, -w, -GATE_FLAP), rod(w, 0, w, -GATE_FLAP), rod(-w, -GATE_FLAP, w, -GATE_FLAP)]), M.chrome);
+      wire.castShadow = true;
+      flap.add(wire);
+      hinge.add(flap);
+      this.group.add(hinge);
+      // local +z of the hinge is the segment's left normal in table space
+      const sign = Math.sign(c.fnx * -Math.sin(phi) + c.fny * Math.cos(phi)) || 1;
+      this.gates.push({ flap, ax: c.ax, ay: c.ay, bx: c.bx, by: c.by, nx: c.fnx, ny: c.fny, sign, angle: 0 });
     });
 
     // rollover buttons
@@ -407,6 +460,15 @@ export class Table3D {
       b.shadow.position.set(s.x + 0.002, 0.0012, s.y - 0.004);
     });
 
+    // gate flaps ride over any ball passing under them, then fall shut
+    for (const g of this.gates) {
+      // the flap falls shut by itself, but never into a ball
+      let a = Math.max(0, g.angle - dt * 9);
+      for (const b of balls) a = gateLift(g, b.x, b.y, a);
+      g.angle = a;
+      g.flap.rotation.x = -g.sign * g.angle;
+    }
+
     // drop targets sink into the playfield
     const disabled = new Set(snap?.disabled ?? []);
     for (const [idx, d] of this.drops) {
@@ -478,6 +540,41 @@ class Path2DRecorder {
       sh.closePath();
     }
   }
+}
+
+/**
+ * The flap angle (radians toward the pass direction) for a gate whose flap
+ * would otherwise fall to `from`: raised just enough not to cut into the ball
+ * at (x, y). Starting from where the flap already is keeps it continuous: it
+ * swings up over a ball, rides on top, then slides down the ball's back.
+ * Works in the vertical plane across the wire: hinge at height GATE_HINGE,
+ * ball center at height R.
+ */
+export function gateLift(g: Gate, x: number, y: number, from = 0): number {
+  const lx = g.bx - g.ax;
+  const ly = g.by - g.ay;
+  const u = ((x - g.ax) * lx + (y - g.ay) * ly) / (lx * lx + ly * ly);
+  if (u < -0.05 || u > 1.05) return from;
+  const s = (x - g.ax) * g.nx + (y - g.ay) * g.ny; // ball's distance past the wire line
+  if (s < -R - 0.002 || s > R + GATE_FLAP) return from;
+  // does the flap at angle th stay clear of the ball?
+  const clear = (th: number) => {
+    const dx = Math.sin(th) * GATE_FLAP;
+    const dy = -Math.cos(th) * GATE_FLAP;
+    // closest point on the flap (hinge (0, GATE_HINGE) → tip) to the ball center (s, R)
+    let t = (s * dx + (R - GATE_HINGE) * dy) / (dx * dx + dy * dy);
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(s - dx * t, R - GATE_HINGE - dy * t) >= R + 0.0009;
+  };
+  if (clear(from)) return from;
+  let lo = from;
+  let hi = 1.5; // nearly level: always above the ball
+  for (let i = 0; i < 14; i++) {
+    const mid = (lo + hi) / 2;
+    if (clear(mid)) hi = mid;
+    else lo = mid;
+  }
+  return hi;
 }
 
 function flipFaces(g: THREE.BufferGeometry): void {

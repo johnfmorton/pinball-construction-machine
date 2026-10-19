@@ -39,6 +39,7 @@ function mirrorPart(p: Part, id: string): Part {
       break;
     case 'standupTarget':
     case 'dropTarget':
+    case 'gate':
       q.pos = mv(q.pos);
       q.angle = 180 - q.angle;
       break;

@@ -5,6 +5,7 @@
   import { DRAFT_KEY, EditorState } from './store.svelte.ts';
   import { EditorCanvas } from './canvas.ts';
   import Inspector from './Inspector.svelte';
+  import Palette from './Palette.svelte';
   import { TYPE_LABELS, TYPE_ORDER } from './labels.ts';
 
   const ed = new EditorState();
@@ -44,6 +45,8 @@
   function playDraft(): void {
     window.open('/?table=draft', 'pcm-play');
   }
+
+  let partsOpen = $state(true);
 </script>
 
 <div class="shell">
@@ -71,27 +74,41 @@
     <div class="right">
       <button onclick={() => (showHelp = !showHelp)} class:on={showHelp}>Shortcuts</button>
       <button onclick={resetToTest} title="Replace the draft with the test table (undoable)">Reset</button>
-      <button class="play" onclick={playDraft} title="Open this table in the 3D player">▶ Play</button>
+      <button
+        class="play"
+        onclick={playDraft}
+        disabled={ed.problems.length > 0}
+        title={ed.problems.length ? `Not playable yet: this table ${ed.problems.join(', ')}` : 'Open this table in the 3D player'}>▶ Play</button
+      >
       <a href="/?table=draft" class="link" title="This draft in the 3D player">3D table</a>
       <a href="/lab.html?table=draft" class="link" title="Tune this draft's physics">Lab</a>
     </div>
   </header>
 
   <aside class="parts">
-    <h3>Parts <span class="count">{ed.table.parts.length}</span></h3>
-    {#each grouped as g (g.type)}
-      <div class="group">{TYPE_LABELS[g.type]}</div>
-      {#each g.parts as p (p.id)}
-        <button
-          class="part"
-          class:sel={ed.selection.includes(p.id)}
-          class:hover={ed.hover === p.id}
-          onclick={(e) => ed.select([p.id], e.shiftKey || e.metaKey)}
-          onmouseenter={() => (ed.hover = p.id)}
-          onmouseleave={() => (ed.hover = null)}>{p.id}</button
-        >
-      {/each}
-    {/each}
+    <h3>Add parts</h3>
+    <Palette {ed} onplace={(key) => view?.placeAtCenter(key)} />
+    <h3 class="list-head">
+      <button class="disclose" onclick={() => (partsOpen = !partsOpen)} aria-expanded={partsOpen}>{partsOpen ? '▾' : '▸'} On the table</button>
+      <span class="count">{ed.table.parts.length}</span>
+    </h3>
+    {#if partsOpen}
+      <div class="list">
+        {#each grouped as g (g.type)}
+          <div class="group">{TYPE_LABELS[g.type]}</div>
+          {#each g.parts as p (p.id)}
+            <button
+              class="part"
+              class:sel={ed.selection.includes(p.id)}
+              class:hover={ed.hover === p.id}
+              onclick={(e) => ed.select([p.id], e.shiftKey || e.metaKey)}
+              onmouseenter={() => (ed.hover = p.id)}
+              onmouseleave={() => (ed.hover = null)}>{p.id}</button
+            >
+          {/each}
+        {/each}
+      </div>
+    {/if}
   </aside>
 
   <main class="stage">
@@ -120,6 +137,7 @@
     <span class="grow"></span>
     <span>{ed.selection.length ? `${ed.selection.length} selected` : ''}</span>
     <span class="mono">{cursorText}</span>
+    {#if ed.problems.length}<span class="warn" title="Add these before you can play">⚠ Not playable yet: {ed.problems.join(', ')}</span>{/if}
     <span class="muted">Draft autosaves in this browser</span>
   </footer>
 </div>
@@ -127,7 +145,7 @@
 <style>
   .shell {
     display: grid;
-    grid-template-columns: 200px 1fr 270px;
+    grid-template-columns: 236px 1fr 280px;
     grid-template-rows: 44px 1fr 26px;
     height: 100vh;
   }
@@ -153,9 +171,12 @@
     background: var(--panel);
     border-right: 1px solid var(--line);
     overflow-y: auto;
-    padding: 8px;
   }
-  h3 { margin: 4px 4px 8px; font-size: 13px; }
+  h3 { margin: 10px 12px 2px; font-size: 13px; }
+  .list-head { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; margin: 8px 0 4px; padding-left: 4px; }
+  .disclose { background: none; border: none; padding: 0 4px; font-weight: 600; font-size: 13px; }
+  .list { padding: 0 8px 12px; }
+  .warn { color: var(--warn); }
   .count { color: var(--muted); font-weight: 400; }
   .group { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 4px 3px; }
   .part {

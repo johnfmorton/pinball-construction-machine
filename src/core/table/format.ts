@@ -115,6 +115,20 @@ export interface SensorPart extends PartBase {
   halfSize?: Vec2;
 }
 
+/**
+ * A one-way gate: a hinged wire flap the ball swings open going one way and
+ * bounces off coming back, e.g. across the top of the shooter lane so a ball
+ * that leaves the lane can't fall back into it.
+ */
+export interface GatePart extends PartBase {
+  type: 'gate';
+  /** Center of the gate wire. */
+  pos: Vec2;
+  /** Direction the ball may pass through (degrees clockwise from +x). The wire runs perpendicular to it. */
+  angle: number;
+  width: number;
+}
+
 export interface PlungerPart extends PartBase {
   type: 'plunger';
   /** Center of the plunger tip at rest. */
@@ -137,6 +151,7 @@ export type Part =
   | SlingshotPart
   | TargetPart
   | SensorPart
+  | GatePart
   | PlungerPart
   | BallStartPart;
 
@@ -211,8 +226,13 @@ export interface ValidationIssue {
   message: string;
 }
 
-/** Structural validation. Returns a list of issues; empty means OK. */
-export function validateTable(t: unknown): ValidationIssue[] {
+/**
+ * Validation. Returns a list of issues; empty means OK. By default it also
+ * checks the table is playable (one ball start, a drain, flippers); pass
+ * `{ playable: false }` to check only the structure, e.g. for a table still
+ * being built in the editor.
+ */
+export function validateTable(t: unknown, opts: { playable?: boolean } = {}): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const tbl = t as Partial<TableDef>;
   if (!tbl || typeof tbl !== 'object') return [{ message: 'Table is not an object' }];
@@ -226,16 +246,10 @@ export function validateTable(t: unknown): ValidationIssue[] {
     return issues;
   }
   const ids = new Set<string>();
-  let flippers = 0;
-  let starts = 0;
-  let drains = 0;
   for (const p of tbl.parts) {
     if (!p.id) issues.push({ message: `a ${p.type} part has no id` });
     else if (ids.has(p.id)) issues.push({ partId: p.id, message: 'duplicate id' });
     ids.add(p.id);
-    if (p.type === 'flipper') flippers++;
-    if (p.type === 'ballStart') starts++;
-    if (p.type === 'drain') drains++;
     if (p.type === 'wall' && !(p.thickness > 0)) issues.push({ partId: p.id, message: 'wall thickness must be > 0' });
   }
   if (tbl.physics !== undefined) {
@@ -254,8 +268,18 @@ export function validateTable(t: unknown): ValidationIssue[] {
       if (v !== undefined && !/^#[0-9a-fA-F]{6}$/.test(v)) issues.push({ message: `appearance.${k} must be a hex color like #ff8a00` });
     }
   }
-  if (starts !== 1) issues.push({ message: 'table needs exactly one ballStart' });
-  if (drains < 1) issues.push({ message: 'table needs at least one drain' });
-  if (flippers < 1) issues.push({ message: 'table has no flippers' });
+  if (opts.playable !== false) issues.push(...playabilityIssues(tbl.parts));
+  return issues;
+}
+
+/** What a structurally valid table still needs before it can be played. */
+export function playabilityIssues(parts: Part[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const count = (type: Part['type']) => parts.filter((p) => p.type === type).length;
+  const starts = count('ballStart');
+  if (starts === 0) issues.push({ message: 'needs a ball start' });
+  if (starts > 1) issues.push({ message: 'has more than one ball start' });
+  if (count('drain') < 1) issues.push({ message: 'needs a drain' });
+  if (count('flipper') < 1) issues.push({ message: 'needs at least one flipper' });
   return issues;
 }

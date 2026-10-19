@@ -29,7 +29,7 @@ const SLOP = 1e-5; // contact tolerance (m)
 const SKIN = 2e-6; // keep balls this far outside surfaces after a hit
 const MAX_ITER = 8;
 
-export type Behavior = 'none' | 'bumper' | 'sling' | 'target' | 'drop';
+export type Behavior = 'none' | 'bumper' | 'sling' | 'target' | 'drop' | 'gate';
 
 export interface StaticCollider {
   index: number;
@@ -44,7 +44,7 @@ export interface StaticCollider {
   /** Part-level kick override (m/s); NaN = use tuning. */
   kick: number;
   enabled: boolean;
-  /** Sling face normal (pointing out of the triangle). */
+  /** Sling face normal (pointing out of the triangle); for a gate, the direction balls may pass. */
   fnx: number;
   fny: number;
   lastFire: number;
@@ -125,6 +125,7 @@ export type PhysEvent =
   | { type: 'target'; partId: string; ball: number }
   | { type: 'drop'; partId: string; ball: number }
   | { type: 'rollover'; partId: string; ball: number }
+  | { type: 'gate'; partId: string; ball: number }
   | { type: 'drain'; partId: string; ball: number }
   | { type: 'flipper'; partId: string; up: boolean }
   | { type: 'launch'; speed: number };
@@ -138,6 +139,8 @@ interface Contact {
 }
 
 const GRID = 0.05;
+/** How close to fully through a gate a ball must be before the gate blocks it (m). */
+const GATE_TOLERANCE = 1e-4;
 
 export class World {
   readonly table: TableDef;
@@ -147,6 +150,8 @@ export class World {
   flippers: Flipper[] = [];
   plungers: Plunger[] = [];
   sensors: Sensor[] = [];
+  /** One-way gates (also in `statics`), checked each step for balls passing through. */
+  gates: StaticCollider[] = [];
   balls: Ball[] = [];
   events: PhysEvent[] = [];
   stepCount = 0;
@@ -278,6 +283,18 @@ export class World {
             'target',
             p.type === 'dropTarget' ? 'drop' : 'target',
           );
+          break;
+        }
+        case 'gate': {
+          // the wire runs perpendicular to the pass direction, like a target face
+          const a = p.angle * DEG;
+          const nx = dcos(a);
+          const ny = dsin(a);
+          const hw = p.width / 2;
+          const g = this.addStatic(p.id, p.pos[0] + ny * hw, p.pos[1] - nx * hw, p.pos[0] - ny * hw, p.pos[1] + nx * hw, 0.0015, 'metal', 'gate');
+          g.fnx = nx;
+          g.fny = ny;
+          this.gates.push(g);
           break;
         }
         case 'rollover':
@@ -416,6 +433,7 @@ export class World {
     const d = this.dist;
     for (const c of this.statics) {
       if (!c.enabled) continue;
+      if (c.behavior === 'gate') continue; // a gate swings open, so it never boxes a ball in
       segmentDistance(c.ax, c.ay, c.bx, c.by, x, y, d);
       if (d.d < c.r + r) out.add(c.partId.split(':')[0]);
     }
@@ -464,6 +482,7 @@ export class World {
 
     this.ballBall();
     this.checkSensors();
+    this.checkGates();
     this.finishFlippers(h);
     this.finishPlungers(h);
   }
@@ -569,6 +588,7 @@ export class World {
     for (let i = 0; i < cands.length; i++) {
       const c = this.statics[cands[i]];
       if (!c.enabled) continue;
+      if (c.behavior === 'gate' && !this.gateBlocks(c, b.x, b.y, R)) continue;
       const t = rayCapsule(b.x, b.y, dx, dy, c.ax, c.ay, c.bx, c.by, c.r + R, hit);
       if (t >= 0 && (best === null || t < best.t)) {
         best = { kind: 'static', index: c.index, t, nx: hit.nx, ny: hit.ny };
@@ -821,6 +841,43 @@ export class World {
     }
   }
 
+  /** Signed distance of (x, y) from a gate's wire line, positive on the side balls pass toward. */
+  private gateSide(c: StaticCollider, x: number, y: number): number {
+    return (x - c.ax) * c.fnx + (y - c.ay) * c.fny;
+  }
+
+  /**
+   * A gate is solid only for a ball that is fully clear of it on the far
+   * (exit) side: that ball can't come back through. A ball arriving from the
+   * near side, or still part-way through with the flap swung up, passes freely.
+   */
+  private gateBlocks(c: StaticCollider, x: number, y: number, R: number): boolean {
+    return this.gateSide(c, x, y) >= c.r + R - GATE_TOLERANCE;
+  }
+
+  /** Report balls that make it all the way through a gate (for scoring and sound). */
+  private checkGates(): void {
+    const R = this.tuning.ballRadius;
+    for (const c of this.gates) {
+      const lx = c.bx - c.ax;
+      const ly = c.by - c.ay;
+      const len2 = lx * lx + ly * ly;
+      for (const b of this.balls) {
+        if (!b.active) continue;
+        const s = this.gateSide(c, b.x, b.y);
+        const u = ((b.x - c.ax) * lx + (b.y - c.ay) * ly) / len2;
+        const key = 'gate:' + c.partId;
+        const inside = s > -(c.r + R) && s < c.r + R - GATE_TOLERANCE && u > -0.1 && u < 1.1;
+        const was = b.inside.has(key);
+        if (inside && !was) b.inside.add(key);
+        else if (!inside && was) {
+          b.inside.delete(key);
+          if (s > 0) this.events.push({ type: 'gate', partId: c.partId, ball: b.id });
+        }
+      }
+    }
+  }
+
   /** Discrete safety pass: push the ball out of anything it ended up inside. */
   private depenetrate(b: Ball): void {
     const R = this.tuning.ballRadius;
@@ -829,6 +886,7 @@ export class World {
     for (let i = 0; i < cands.length; i++) {
       const c = this.statics[cands[i]];
       if (!c.enabled) continue;
+      if (c.behavior === 'gate' && !this.gateBlocks(c, b.x, b.y, R)) continue;
       segmentDistance(c.ax, c.ay, c.bx, c.by, b.x, b.y, d);
       const pen = c.r + R - d.d;
       if (pen > 0) {

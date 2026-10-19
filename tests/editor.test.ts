@@ -141,3 +141,92 @@ describe('an edited table still plays', () => {
     expect(findTraps(edited, { balls: 80 }).traps).toEqual([]);
   });
 });
+
+describe('parts palette', () => {
+  it('every entry drops a valid part exactly where the cursor is, and the table still builds', async () => {
+    const { CATALOG, instantiate, groupAnchor, canPlace } = await import('../src/editor/model/catalog.ts');
+    let table: TableDef = { ...t, parts: t.parts.filter((p) => p.type !== 'ballStart') };
+    for (const e of CATALOG) {
+      expect(canPlace(e, table), e.key).toBe(true);
+      const parts = instantiate(e, table, [0.2, 0.5]);
+      const [x, y] = groupAnchor(parts);
+      expect(x, e.key).toBeCloseTo(0.2, 4);
+      expect(y, e.key).toBeCloseTo(0.5, 4);
+      table = { ...table, parts: [...table.parts, ...parts] };
+    }
+    expect(validateTable(table)).toEqual([]); // ids all unique, exactly one ball start
+    expect(() => new World(table, DEFAULT_TUNING)).not.toThrow();
+  });
+
+  it('numbers new ids and gives each new bank its own group', async () => {
+    const { catalogEntry, instantiate } = await import('../src/editor/model/catalog.ts');
+    const bank = catalogEntry('drop-bank')!;
+    const a = instantiate(bank, t, [0.2, 0.3]);
+    expect(a.map((p) => p.id)).toEqual(['drop-4', 'drop-5', 'drop-6']); // the test table has drop-1..3
+    expect(new Set(a.map((p) => p.group)).size).toBe(1);
+    expect(a[0].group).not.toBe('drops'); // the test table already uses "drops"
+    const b = instantiate(bank, { ...t, parts: [...t.parts, ...a] }, [0.2, 0.4]);
+    expect(b[0].group).not.toBe(a[0].group);
+  });
+
+  it('only one ball start', async () => {
+    const { catalogEntry, canPlace } = await import('../src/editor/model/catalog.ts');
+    expect(canPlace(catalogEntry('ball-start')!, t)).toBe(false);
+  });
+});
+
+describe('inspector fields', () => {
+  it('every field reads back what it writes', async () => {
+    const { typeFields, positionFields } = await import('../src/editor/model/fields.ts');
+    const { CATALOG, instantiate } = await import('../src/editor/model/catalog.ts');
+    for (const e of CATALOG) {
+      for (const p of instantiate(e, t, [0.2, 0.5])) {
+        for (const f of [...positionFields, ...typeFields(p)]) {
+          const v = f.get(p);
+          if (f.kind === 'select') {
+            const other = f.options!.find((o) => o.value !== v)!.value;
+            expect(f.get(f.set(p, other)), `${p.type}.${f.key}`).toBe(other);
+          } else if (typeof v === 'number' || v === undefined) {
+            const want = f.kind === 'length' ? 0.0213 : f.kind === 'angle' ? 33 : 1.25;
+            const lo = f.min ?? -Infinity;
+            const hi = f.max ?? Infinity;
+            expect(f.get(f.set(p, want)), `${p.type}.${f.key}`).toBeCloseTo(Math.min(hi, Math.max(lo, want)), 4);
+          }
+        }
+      }
+    }
+  });
+
+  it('blank clears optional settings back to the table default', async () => {
+    const { typeFields } = await import('../src/editor/model/fields.ts');
+    const b = { ...get('bumper-1'), kick: 2 } as Part;
+    const kick = typeFields(b).find((f) => f.key === 'kick')!;
+    expect('kick' in kick.set(b, undefined)).toBe(false);
+  });
+
+  it('lengths are clamped to sensible limits', async () => {
+    const { typeFields } = await import('../src/editor/model/fields.ts');
+    const f = get('flipper-left');
+    const len = typeFields(f).find((x) => x.key === 'length')!;
+    expect(len.get(len.set(f, 0.5))).toBe(0.12);
+  });
+});
+
+describe('align and distribute', () => {
+  it('aligns left edges and spreads anchors evenly', async () => {
+    const { alignParts, distributeParts } = await import('../src/editor/model/arrange.ts');
+    const posts: Part[] = [0.1, 0.13, 0.3].map((x, i) => ({ id: `p${i}`, type: 'post', pos: [x, 0.2 + i * 0.05], radius: 0.008 + i * 0.002, material: 'metal' }));
+    const left = alignParts(posts, 'left').map((p) => partBounds(p).minX);
+    for (const v of left) expect(v).toBeCloseTo(Math.min(...posts.map((p) => partBounds(p).minX)), 6);
+    const spread = distributeParts(posts, 'x').map((p) => anchor(p)[0]);
+    expect(spread[1] - spread[0]).toBeCloseTo(spread[2] - spread[1], 6);
+  });
+});
+
+describe('playability', () => {
+  it('an unfinished table is still a valid draft, just not playable', () => {
+    const bare: TableDef = { ...t, parts: t.parts.filter((p) => p.type === 'wall') };
+    expect(validateTable(bare, { playable: false })).toEqual([]);
+    expect(validateTable(bare).map((i) => i.message)).toEqual(['needs a ball start', 'needs a drain', 'needs at least one flipper']);
+  });
+});

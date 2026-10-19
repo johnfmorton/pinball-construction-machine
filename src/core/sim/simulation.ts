@@ -305,6 +305,9 @@ export class Simulation {
         }
         break;
       }
+      case 'gate':
+        this.award(ev.partId, this.parts.get(ev.partId)?.points);
+        break;
       case 'launch':
         if (this.ballSaveArmed) this.armBallSave();
         break;

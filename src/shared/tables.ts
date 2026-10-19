@@ -5,7 +5,7 @@
  */
 import testTable from '../../tables/test-table.json';
 import flipperLab from '../../tables/flipper-lab.json';
-import { validateTable, type TableDef } from '../core/table/format.ts';
+import { playabilityIssues, validateTable, type TableDef } from '../core/table/format.ts';
 
 export const DRAFT_KEY = 'pcm.editor.draft';
 
@@ -20,13 +20,17 @@ export const TABLE_LABELS: Record<string, string> = {
   draft: 'Editor draft',
 };
 
-/** The editor's autosaved draft, or null if there isn't a valid one. */
-export function loadDraft(): TableDef | null {
+/**
+ * The editor's autosaved draft, or null if there isn't a valid one. With
+ * `playable: false` it also returns a draft that's still missing pieces
+ * (the editor opens those; the player and lab can't run them).
+ */
+export function loadDraft(opts: { playable?: boolean } = {}): TableDef | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const t = JSON.parse(raw) as TableDef;
-    return validateTable(t).length ? null : t;
+    return validateTable(t, opts).length ? null : t;
   } catch {
     return null;
   }
@@ -39,6 +43,12 @@ export function saveDraft(t: TableDef): boolean {
   } catch {
     return false;
   }
+}
+
+/** Why the draft can't be played yet (empty when it can, or when there's no draft). */
+export function draftProblems(): string[] {
+  const t = loadDraft({ playable: false });
+  return t ? playabilityIssues(t.parts).map((i) => i.message) : [];
 }
 
 /** Built-in tables plus the draft (when there is one), keyed for a <select>. */

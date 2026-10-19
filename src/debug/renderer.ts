@@ -2,7 +2,7 @@
  * Plain top-down debug renderer (Canvas 2D). Deliberately simple: Phase 0 is
  * about physics feel, so this draws the true collision shapes rather than art.
  */
-import { World } from '../core/physics/world.ts';
+import { World, type StaticCollider } from '../core/physics/world.ts';
 import type { MaterialName, TableDef } from '../core/table/format.ts';
 import { DEFAULT_TUNING } from '../core/physics/tuning.ts';
 import type { Snapshot } from '../worker/protocol.ts';
@@ -204,6 +204,10 @@ export class Renderer {
         }
         continue;
       }
+      if (c.behavior === 'gate') {
+        this.drawGate(ctx, c, fl, px, ov.wire);
+        continue;
+      }
       ctx.beginPath();
       ctx.moveTo(c.ax, c.ay);
       ctx.lineTo(c.bx, c.by);
@@ -325,6 +329,43 @@ export class Renderer {
     }
 
     this.overlay?.(ctx, px);
+  }
+
+  /** A one-way gate: the wire, with chevrons pointing the way the ball may pass. */
+  private drawGate(ctx: CanvasRenderingContext2D, c: StaticCollider, flash: boolean, px: number, wire: boolean): void {
+    ctx.beginPath();
+    ctx.moveTo(c.ax, c.ay);
+    ctx.lineTo(c.bx, c.by);
+    ctx.lineWidth = Math.max(c.r * 2, 2 * px);
+    ctx.strokeStyle = flash ? '#ffffff' : '#d7e3ee';
+    ctx.setLineDash([4 * px, 2.5 * px]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (wire) {
+      ctx.lineWidth = px;
+      ctx.strokeStyle = '#ff00aa';
+      ctx.stroke();
+    }
+    // chevrons along the pass direction
+    const mx = (c.ax + c.bx) / 2;
+    const my = (c.ay + c.by) / 2;
+    const tx = c.bx - c.ax;
+    const ty = c.by - c.ay;
+    const len = Math.hypot(tx, ty) || 1;
+    const ux = tx / len;
+    const uy = ty / len;
+    const k = Math.min(0.006, len * 0.18);
+    ctx.lineWidth = 1.5 * px;
+    ctx.strokeStyle = flash ? '#ffffff' : 'rgba(126, 231, 135, 0.85)';
+    for (const d of [0.006, 0.012]) {
+      const tipX = mx + c.fnx * (d + k * 0.6);
+      const tipY = my + c.fny * (d + k * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(mx + c.fnx * d - ux * k, my + c.fny * d - uy * k);
+      ctx.lineTo(tipX, tipY);
+      ctx.lineTo(mx + c.fnx * d + ux * k, my + c.fny * d + uy * k);
+      ctx.stroke();
+    }
   }
 
   private drawFlipper(px0: number, py0: number, a: number, L: number, rb: number, rt: number, wire: boolean, px: number): void {

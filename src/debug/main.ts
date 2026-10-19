@@ -9,7 +9,7 @@ import type { InputKind } from '../core/sim/simulation.ts';
 import type { FromWorker, Snapshot, Stats, ToWorker } from '../worker/protocol.ts';
 import { Renderer, type Overlays } from './renderer.ts';
 import { Sfx } from './sfx.ts';
-import { DRAFT_KEY, availableTables, fillTableSelect, linkWithTable, loadDraft, saveDraft, tableFromQuery } from '../shared/tables.ts';
+import { DRAFT_KEY, availableTables, draftProblems, fillTableSelect, linkWithTable, loadDraft, saveDraft, tableFromQuery } from '../shared/tables.ts';
 
 // built-in tables plus the editor's draft, so the lab can tune what you're building
 const TABLES: Record<string, TableDef> = availableTables();
@@ -112,6 +112,10 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
           case 'rollover':
             renderer.flash(ev.partId, 220);
             sfx.ding();
+            break;
+          case 'gate':
+            renderer.flash(ev.partId, 160);
+            sfx.gate();
             break;
           case 'flipper':
             if (ev.up) sfx.flipper();
@@ -585,5 +589,10 @@ window.addEventListener('storage', (e) => {
 
 window.addEventListener('resize', () => renderer.resize());
 renderer.resize();
+// asked for the draft, but it's still missing pieces the game needs
+if (new URLSearchParams(location.search).get('table') === 'draft' && !TABLES.draft) {
+  const problems = draftProblems();
+  if (problems.length) showBanner(`The editor draft can't be played yet: it ${problems.join(', ')}`, 6000);
+}
 loadTable(table);
 requestAnimationFrame(frame);

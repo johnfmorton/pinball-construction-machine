@@ -44,6 +44,7 @@ A table is one JSON document. The editor writes it, the physics engine and rende
 | `standupTarget` | `pos`, `angle`, `width` | `angle` is the direction the face points. |
 | `dropTarget` | `pos`, `angle`, `width`, `group?` | Drops when hit; a completed `group` scores a bonus and resets. |
 | `rollover` | `pos`, `radius?`, `group?` | Lane switch. The `toplanes` group gets lane-change and a multiplier. |
+| `gate` | `pos`, `angle`, `width`, `points?` | One-way gate. `angle` is the direction the ball may pass (degrees clockwise from +x); the wire runs across it. Solid only for a ball that is fully through on the exit side, so a ball too slow to clear it falls back the way it came. Scores `points` when a ball makes it through. |
 | `drain` | `pos`, `halfSize` | Axis-aligned rectangle; a ball entering it is lost. |
 | `plunger` | `pos`, `width`, `maxPull` | `pos` is the tip at rest. |
 | `ballStart` | `pos` | Where new balls appear (exactly one per table). |
@@ -73,6 +74,6 @@ Curves are flattened to short straight pieces (0.8 mm tolerance) when the table 
 
 ## Validation
 
-`validateTable()` checks structure (format/version, unique ids, one `ballStart`, at least one drain and flipper). `findTraps()` (`src/core/table/traps.ts`, or `npm run traps -- table.json`) is the geometry check: it flood-fills the area a ball can reach from the ball start, drops balls at random spots inside it with the flippers idle, and reports any ball that comes to rest instead of draining (resting on the plunger is allowed). It runs with drop targets up and down. The editor will run it before a table can be published.
+`validateTable()` checks structure (format/version, unique ids) and playability (one `ballStart`, at least one drain and flipper). `validateTable(t, { playable: false })` checks structure only; the editor saves unfinished tables that way, and `playabilityIssues()` lists what they still need. `findTraps()` (`src/core/table/traps.ts`, or `npm run traps -- table.json`) is the geometry check: it flood-fills the area a ball can reach from the ball start, drops balls at random spots inside it with the flippers idle, and reports any ball that comes to rest instead of draining (resting on the plunger is allowed). It runs with drop targets up and down. The editor will run it before a table can be published.
 
 A common trap is a ledge: a part mounted close to a wall, with a gap narrower than the ball (27 mm). A ball rolling down the wall lands on the part's top end and stays there. Real tables fix this with a sloped deflector from the wall to the part; see `standup-deflector` and `drop-deflector` in the test table.

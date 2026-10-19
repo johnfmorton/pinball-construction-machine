@@ -4,17 +4,18 @@
  */
 import testTable from '../../tables/test-table.json';
 import type { Vec2 } from '../core/math/bezier.ts';
-import { validateTable, type Part, type TableDef } from '../core/table/format.ts';
+import { playabilityIssues, validateTable, type Part, type TableDef } from '../core/table/format.ts';
 import { DRAFT_KEY, loadDraft, saveDraft } from '../shared/tables.ts';
 import { History, uniqueId } from './model/history.ts';
 import { anchor, mirrorAxis, mirrorPart, partBounds, rotatePart, scalePart, translatePart, unionBounds, type Bounds } from './model/parts.ts';
 import type { Guide } from './model/snap.ts';
+import { alignParts, distributeParts, type AlignMode } from './model/arrange.ts';
 
 export { DRAFT_KEY };
 
 function initialTable(): TableDef {
   // no draft yet (or a bad one): start from the test table
-  return loadDraft() ?? structuredClone(testTable as TableDef);
+  return loadDraft({ playable: false }) ?? structuredClone(testTable as TableDef);
 }
 
 export class EditorState {
@@ -24,6 +25,10 @@ export class EditorState {
   guides = $state.raw<Guide[]>([]);
   snap = $state(true);
   status = $state('');
+  /** Parts being dragged in from the palette, drawn but not yet on the table. */
+  preview = $state.raw<Part[] | null>(null);
+  /** Palette entry currently being dragged (HTML drag-and-drop hides the data until drop). */
+  dragging = $state<string | null>(null);
   /** Bumped on every history change so undo/redo labels re-render. */
   private rev = $state(0);
   private history = new History();
@@ -54,6 +59,16 @@ export class EditorState {
 
   get selectionBounds(): Bounds | null {
     return unionBounds(this.selectedParts.map(partBounds));
+  }
+
+  /** What the table still needs before it can be played (empty = playable). */
+  get problems(): string[] {
+    return playabilityIssues(this.table.parts).map((i) => i.message);
+  }
+
+  /** Every group name in use, for the inspector's suggestions. */
+  get groups(): string[] {
+    return [...new Set(this.table.parts.map((p) => p.group).filter((g): g is string => !!g))].sort();
   }
 
   get selectionCenter(): Vec2 | null {
@@ -195,6 +210,44 @@ export class EditorState {
     this.commit(this.mapSelected((p) => scalePart(p, k, c)), 'resize');
   }
 
+  /** Add new parts (ids already unique) and select them. */
+  addParts(parts: Part[], label: string): void {
+    if (!parts.length) return;
+    this.commit({ ...this.table, parts: [...this.table.parts, ...parts] }, label);
+    this.selection = parts.map((p) => p.id);
+  }
+
+  /** Replace several parts at once, matched by id. */
+  replaceParts(next: Part[], label: string): void {
+    const byId = new Map(next.map((p) => [p.id, p]));
+    this.commit({ ...this.table, parts: this.table.parts.map((p) => byId.get(p.id) ?? p) }, label);
+  }
+
+  align(mode: AlignMode): void {
+    this.replaceParts(alignParts(this.selectedParts, mode), 'align');
+  }
+
+  distribute(axis: 'x' | 'y'): void {
+    this.replaceParts(distributeParts(this.selectedParts, axis), 'distribute');
+  }
+
+  /** Rename a part. Returns an error message, or null if it worked. */
+  renamePart(id: string, next: string): string | null {
+    const name = next.trim();
+    if (!name) return 'An id can’t be empty';
+    if (name === id) return null;
+    if (this.table.parts.some((p) => p.id === name)) return `“${name}” is already used`;
+    if (name.includes(':')) return 'Ids can’t contain “:”';
+    this.commit({ ...this.table, parts: this.table.parts.map((p) => (p.id === id ? { ...p, id: name } : p)) }, 'rename');
+    this.selection = this.selection.map((s) => (s === id ? name : s));
+    return null;
+  }
+
+  /** Change table-level settings (name, size, rules, look). */
+  updateTable(next: TableDef, label = 'table settings'): void {
+    this.commit(next, label);
+  }
+
   /** Replace one part (inspector edits). */
   updatePart(id: string, next: Part, label = 'edit'): void {
     this.commit({ ...this.table, parts: this.table.parts.map((p) => (p.id === id ? next : p)) }, label);
@@ -208,7 +261,7 @@ export class EditorState {
     if (!raw || raw === JSON.stringify(this.table)) return;
     try {
       const t = JSON.parse(raw) as TableDef;
-      if (validateTable(t).length) return;
+      if (validateTable(t, { playable: false }).length) return;
       this.commit(t, 'tuning from Physics Lab');
       this.pruneSelection();
       this.status = 'Physics settings updated from the Physics Lab';

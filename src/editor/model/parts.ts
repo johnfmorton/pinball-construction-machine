@@ -18,6 +18,8 @@ export interface Bounds {
 
 const BALL_R = 0.0135;
 const SLING_R = 0.004;
+/** Length of the pass-direction arrow drawn on gates (m). */
+export const GATE_ARROW = 0.018;
 
 // ------------------------------------------------------------------ queries
 
@@ -70,10 +72,16 @@ export function partBounds(p: Part): Bounds {
       for (const v of [p.a, p.b, p.c]) add(v[0], v[1], SLING_R);
       break;
     case 'standupTarget':
-    case 'dropTarget': {
+    case 'dropTarget':
+    case 'gate': {
       const [a0, a1] = targetEnds(p.pos, p.angle, p.width);
       add(a0[0], a0[1], 0.003);
       add(a1[0], a1[1], 0.003);
+      // gates: include the arrow showing which way the ball passes
+      if (p.type === 'gate') {
+        const a = (p.angle * Math.PI) / 180;
+        add(p.pos[0] + Math.cos(a) * GATE_ARROW, p.pos[1] + Math.sin(a) * GATE_ARROW);
+      }
       break;
     }
     case 'drain':
@@ -126,7 +134,8 @@ export function partDistance(p: Part, x: number, y: number): number {
       return Math.min(segDist(p.a, p.b, x, y), segDist(p.b, p.c, x, y), segDist(p.c, p.a, x, y)) - SLING_R;
     }
     case 'standupTarget':
-    case 'dropTarget': {
+    case 'dropTarget':
+    case 'gate': {
       const [a0, a1] = targetEnds(p.pos, p.angle, p.width);
       return segDist(a0, a1, x, y) - 0.003;
     }
@@ -231,6 +240,7 @@ export function rotatePart(p: Part, theta: number, center: Vec2): Part {
       return { ...moved, restAngle: roundM(normDeg(moved.restAngle + deg)) };
     case 'standupTarget':
     case 'dropTarget':
+    case 'gate':
       return { ...moved, angle: roundM(normDeg(moved.angle + deg)) };
     case 'drain': {
       // drains are axis-aligned rectangles: quarter turns swap their extents
@@ -262,6 +272,8 @@ export function scalePart(p: Part, k: number, center: Vec2): Part {
     case 'standupTarget':
     case 'dropTarget':
       return { ...moved, width: clamp(moved.width * k, 0.012, 0.06) };
+    case 'gate':
+      return { ...moved, width: clamp(moved.width * k, 0.02, 0.1) };
     case 'drain':
       return moved.halfSize ? { ...moved, halfSize: [roundM(moved.halfSize[0] * k), roundM(moved.halfSize[1] * k)] } : moved;
     default:
@@ -279,6 +291,7 @@ export function mirrorPart(p: Part, axis: number): Part {
     }
     case 'standupTarget':
     case 'dropTarget':
+    case 'gate':
       return { ...moved, angle: roundM(normDeg(180 - moved.angle)) };
     default:
       return moved;

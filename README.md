@@ -31,10 +31,11 @@ Open `http://127.0.0.1:5280`. Same controls as the lab (below), plus `P` pause, 
 
 ## The editor
 
-At `/editor.html`. Top-down editing on the true collider shapes, with a parts list on the left and the selected part's settings on the right. The draft autosaves in your browser and every page can open it: **▶ Play** opens it in the 3D player, and the player and Physics Lab list it as **Editor draft** in their table menus (their links between pages keep the current table). In the lab, **Save to table** on the draft writes the tuning back into the draft, and an open editor picks it up as an undoable change.
+At `/editor.html`. Top-down editing on the true collider shapes. On the left, the parts palette (drag a part onto the table, or click it to drop one in the middle of the view) and the list of parts on the table; on the right, the inspector: every setting of the selected part, align and distribute for several parts, or the table's own settings (name, size, slope, balls, ball save, theme and colors) when nothing is selected. The **One-way gate** (in Lanes & switches) lets the ball pass only in its arrow's direction; put one across the top of the shooter lane so a ball can't fall back in. The draft autosaves in your browser and every page can open it: **▶ Play** opens it in the 3D player, and the player and Physics Lab list it as **Editor draft** in their table menus (their links between pages keep the current table). In the lab, **Save to table** on the draft writes the tuning back into the draft, and an open editor picks it up as an undoable change.
 
 | Action | How |
 | --- | --- |
+| Add | Drag from the palette (snaps like a move; hold `⌘` to place freely), or click a palette tile |
 | Select | Click; `⇧`-click adds/removes; drag on empty space to box-select |
 | Move, resize, rotate | Drag the part; corner handles resize; the top handle rotates |
 | Snapping | 5 mm grid, 5° angles, and guides to other parts, the center line, and mirror images. Hold `⌘` to place freely |
