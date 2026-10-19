@@ -14,7 +14,7 @@ Web app to build, play, and rate pinball tables (reimagining Bill Budge's Pinbal
 - `src/core/` is pure TypeScript with no DOM; it runs in the worker and in Node (server-side replay verification).
 - Determinism is a hard requirement. In anything that runs during a physics step: no `Math.sin/cos/atan2/exp/pow/hypot/random`, no `Date`/wall clock, fixed iteration order. Use `dsin`/`dcos` (`math/dmath.ts`) and `Rng`. See `docs/physics.md`.
 - Every physics constant goes in `physics/tuning.ts` with a slider spec, not inline.
-- Changing the table format means bumping `TABLE_VERSION` and adding a migration.
+- Bump `TABLE_VERSION` and add a migration only for changes that break existing tables (renaming or removing a field, changing what a value means). Additive changes (a new part type, a new optional field) keep the version: every existing table still loads unchanged.
 - Changing the physics changes replay outcomes; that's expected while in Phase 0, but note it in the commit message.
 - Units are SI (meters, kg, s). Table angles are degrees clockwise from +x; internal angles are radians.
 - `src/render3d/` only follows physics snapshots; it never affects the simulation. Build part meshes in table space (x, height, table y) from the same data the physics uses, so visuals match colliders.

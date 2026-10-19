@@ -9,6 +9,11 @@ import type { TableDef } from '../core/table/format.ts';
 import { anchor, hitTest, mirrorAxis, partBounds, partsInRect, rotatePart, scalePart, translatePart, unionBounds, type Bounds } from './model/parts.ts';
 import { snapAngle, snapPoint } from './model/snap.ts';
 import { canPlace, catalogEntry, instantiate } from './model/catalog.ts';
+import { hitPath, insertNode, moveHandle, moveNode, toNodes, toPath, toggleSmooth, type EditPath, type PathNode } from './model/path.ts';
+import { uniqueId } from './model/history.ts';
+import { mirrorPart } from './model/parts.ts';
+import { PEN_PRESETS } from './store.svelte.ts';
+import type { Part } from '../core/table/format.ts';
 import type { EditorState } from './store.svelte.ts';
 
 type Drag =
@@ -16,7 +21,18 @@ type Drag =
   | { kind: 'rotate'; center: Vec2; startAngle: number; base: TableDef }
   | { kind: 'scale'; center: Vec2; startDist: number; base: TableDef }
   | { kind: 'marquee'; start: Vec2; now: Vec2; additive: boolean }
-  | { kind: 'pan'; startX: number; startY: number; panX: number; panY: number };
+  | { kind: 'pan'; startX: number; startY: number; panX: number; panY: number }
+  | { kind: 'node'; id: string; index: number; base: TableDef }
+  | { kind: 'handle'; id: string; index: number; which: 'in' | 'out'; base: TableDef };
+
+/** A wall being drawn with the pen. */
+interface PenState {
+  nodes: PathNode[];
+  /** Mouse is down on the newest node: dragging pulls out its curve handles. */
+  pulling: boolean;
+  /** Snapped cursor, for the rubber-band segment to the next point. */
+  cursor: Vec2 | null;
+}
 
 const HANDLE_PX = 7;
 const ROTATE_OFFSET_PX = 26;
@@ -30,6 +46,7 @@ export class EditorCanvas {
   private raf = 0;
   cursor: Vec2 | null = null;
   showGrid = true;
+  private pen: PenState | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -47,6 +64,7 @@ export class EditorCanvas {
     canvas.addEventListener('dragover', this.onDragOver);
     canvas.addEventListener('dragleave', this.onDragLeave);
     canvas.addEventListener('drop', this.onDrop);
+    canvas.addEventListener('dblclick', this.onDoubleClick);
     canvas.addEventListener('pointerleave', () => {
       this.cursor = null;
       this.ed.hover = null;
@@ -200,8 +218,37 @@ export class EditorCanvas {
       ctx.fill();
     }
 
+    // symmetry: highlight the mirror twins of the selection
+    if (ed.symmetry) {
+      const twins = ed.twins;
+      for (const p of sel) {
+        const twin = twins.get(p.id);
+        const q = twin ? t.parts.find((x) => x.id === twin) : null;
+        if (q && !ed.selection.includes(q.id)) this.box(ctx, partBounds(q), 'rgba(79,209,255,0.85)', 1.5 * px, cssPx, true);
+      }
+    }
+
+    // point editing on a single selected wall
+    const wall = ed.selectedWall;
+    if (wall && ed.tool === 'select') this.drawNodes(ctx, toNodes(wall.path), cssPx, px, ed.activeNode);
+
+    // the wall being drawn
+    if (this.pen) {
+      const e: EditPath = { nodes: this.pen.nodes, closed: false };
+      this.drawNodes(ctx, e, cssPx, px, null);
+      const first = this.pen.nodes[0];
+      const c = this.pen.cursor;
+      if (c && this.pen.nodes.length >= 3 && Math.hypot(c[0] - first.p[0], c[1] - first.p[1]) < 8 * cssPx) {
+        ctx.beginPath();
+        ctx.arc(first.p[0], first.p[1], 7 * cssPx, 0, Math.PI * 2);
+        ctx.strokeStyle = '#7ee787';
+        ctx.lineWidth = 1.5 * px;
+        ctx.stroke();
+      }
+    }
+
     // parts being dragged in from the palette
-    if (ed.preview?.length) {
+    if (ed.preview?.length && !this.pen) {
       const pb = unionBounds(ed.preview.map(partBounds));
       if (pb) this.box(ctx, pb, 'rgba(126,231,135,0.9)', 1.5 * px, cssPx, true);
     }
@@ -230,6 +277,33 @@ export class EditorCanvas {
       ctx.lineWidth = px;
       ctx.strokeRect(r.minX, r.minY, r.maxX - r.minX, r.maxY - r.minY);
     }
+  }
+
+  /** Path nodes (squares) and their curve handles (dots on stalks). */
+  private drawNodes(ctx: CanvasRenderingContext2D, e: EditPath, cssPx: number, px: number, active: number | null): void {
+    const s = 3.5 * cssPx;
+    ctx.lineWidth = px;
+    for (const n of e.nodes) {
+      for (const h of [n.in, n.out]) {
+        if (!h) continue;
+        ctx.beginPath();
+        ctx.moveTo(n.p[0], n.p[1]);
+        ctx.lineTo(h[0], h[1]);
+        ctx.strokeStyle = 'rgba(126,231,135,0.7)';
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(h[0], h[1], 3 * cssPx, 0, Math.PI * 2);
+        ctx.fillStyle = '#7ee787';
+        ctx.fill();
+      }
+    }
+    e.nodes.forEach((n, i) => {
+      ctx.fillStyle = i === active ? '#7ee787' : '#0d1117';
+      ctx.strokeStyle = '#7ee787';
+      ctx.lineWidth = 1.5 * px;
+      ctx.fillRect(n.p[0] - s, n.p[1] - s, 2 * s, 2 * s);
+      ctx.strokeRect(n.p[0] - s, n.p[1] - s, 2 * s, 2 * s);
+    });
   }
 
   private box(ctx: CanvasRenderingContext2D, b: Bounds, color: string, lw: number, cssPx: number, dashed: boolean): void {
@@ -267,6 +341,23 @@ export class EditorCanvas {
       return;
     }
     if (e.button !== 0) return;
+    if (ed.tool === 'pen') {
+      this.penDown(x, y, e);
+      return;
+    }
+    // points and curve handles of the selected wall come first
+    const wall = ed.selectedWall;
+    if (wall) {
+      const h = hitPath(toNodes(wall.path), x, y, 6 * this.m, 0);
+      if (h && h.kind !== 'segment') {
+        ed.beginDrag();
+        if (h.kind === 'node') {
+          ed.activeNode = h.index;
+          this.drag = { kind: 'node', id: wall.id, index: h.index, base: ed.table };
+        } else this.drag = { kind: 'handle', id: wall.id, index: h.index, which: h.which, base: ed.table };
+        return;
+      }
+    }
     const handle = this.handleAt(x, y);
     const c = ed.selectionCenter;
     if (handle && c) {
@@ -280,6 +371,7 @@ export class EditorCanvas {
     }
     const hit = hitTest(ed.table, x, y, 4 * this.m);
     if (hit) {
+      ed.activeNode = null;
       if (e.shiftKey) {
         ed.select([hit.id], true);
         return;
@@ -303,7 +395,17 @@ export class EditorCanvas {
     const ed = this.ed;
     const d = this.drag;
     const free = e.metaKey || e.ctrlKey; // hold ⌘ (Ctrl) to place freely
+    if (ed.tool === 'pen') {
+      this.penMove(x, y, e);
+      return;
+    }
     if (!d) {
+      const wall = ed.selectedWall;
+      const onPoint = wall && hitPath(toNodes(wall.path), x, y, 6 * this.m, 0);
+      if (onPoint) {
+        this.canvas.style.cursor = onPoint.kind === 'node' ? 'move' : 'crosshair';
+        return;
+      }
       const handle = this.handleAt(x, y);
       const hit = handle ? null : hitTest(ed.table, x, y, 4 * this.m);
       ed.hover = hit?.id ?? null;
@@ -341,6 +443,16 @@ export class EditorCanvas {
         ed.status = `Rotate ${Math.round((theta * 180) / Math.PI)}°`;
         break;
       }
+      case 'node': {
+        const target = this.snapNode([x, y], d.base, d.id, d.index, free);
+        ed.dragTo(ed.withWallPath(d.id, (p) => moveNode(p, d.index, target), d.base));
+        break;
+      }
+      case 'handle': {
+        const target: Vec2 = free || !ed.snap ? [x, y] : [snapGridM(x), snapGridM(y)];
+        ed.dragTo(ed.withWallPath(d.id, (p) => moveHandle(p, d.index, d.which, target, e.altKey), d.base));
+        break;
+      }
       case 'scale': {
         let k = Math.hypot(x - d.center[0], y - d.center[1]) / d.startDist;
         if (ed.snap && !free) k = Math.max(0.05, Math.round(k * 20) / 20); // 5% steps
@@ -352,6 +464,7 @@ export class EditorCanvas {
   };
 
   private onUp = (): void => {
+    if (this.pen) this.pen.pulling = false;
     const d = this.drag;
     this.drag = null;
     const ed = this.ed;
@@ -362,6 +475,8 @@ export class EditorCanvas {
     } else if (d.kind === 'move') ed.endDrag('move');
     else if (d.kind === 'rotate') ed.endDrag('rotate');
     else if (d.kind === 'scale') ed.endDrag('resize');
+    else if (d.kind === 'node') ed.endDrag('move point');
+    else if (d.kind === 'handle') ed.endDrag('reshape curve');
   };
 
   private onWheel = (e: WheelEvent): void => {
@@ -373,6 +488,152 @@ export class EditorCanvas {
       this.renderer.panX -= e.deltaX;
       this.renderer.panY -= e.deltaY;
       this.renderer.resize();
+    }
+  };
+
+  // ------------------------------------------------------------ pen tool
+
+  /** Snap a wall point: grid, other parts' anchors and wall points, the mirror axis. */
+  private snapNode(p: Vec2, base: TableDef, skipId: string | null, skipIndex: number, free: boolean, from?: Vec2, constrain = false): Vec2 {
+    const ed = this.ed;
+    if (constrain && from) {
+      // Shift: lock the segment to 15° steps from the previous point
+      const a = Math.round(Math.atan2(p[1] - from[1], p[0] - from[0]) / (Math.PI / 12)) * (Math.PI / 12);
+      const len = Math.hypot(p[0] - from[0], p[1] - from[1]);
+      return [from[0] + Math.cos(a) * len, from[1] + Math.sin(a) * len];
+    }
+    if (!ed.snap || free) {
+      ed.guides = [];
+      return p;
+    }
+    const anchors: Vec2[] = [];
+    for (const q of base.parts) {
+      if (q.type === 'drain') continue;
+      if (q.type === 'wall') {
+        toNodes(q.path).nodes.forEach((n, i) => {
+          if (q.id !== skipId || i !== skipIndex) anchors.push(n.p);
+        });
+      } else anchors.push(anchor(q));
+    }
+    if (this.pen) for (const n of this.pen.nodes) anchors.push(n.p);
+    const r = snapPoint(p, { anchors, mirror: mirrorAxis(base) }, 6 * this.m);
+    ed.guides = r.guides;
+    return r.point;
+  }
+
+  /** The wall(s) the pen would make from these nodes (two with symmetry on). */
+  private penWalls(nodes: PathNode[], closed: boolean): Part[] {
+    const ed = this.ed;
+    const preset = PEN_PRESETS[ed.penPreset];
+    const id = uniqueId(ed.table, preset.stem);
+    const wall: Part = {
+      id,
+      type: 'wall',
+      thickness: preset.thickness,
+      height: preset.height,
+      material: preset.material,
+      path: toPath({ nodes, closed }),
+    };
+    if (!ed.symmetry) return [wall];
+    const twin = { ...mirrorPart(wall, mirrorAxis(ed.table)), id: uniqueId(ed.table, preset.stem, new Set([id])) };
+    return [wall, twin];
+  }
+
+  private updatePenPreview(): void {
+    const pen = this.pen;
+    if (!pen) return;
+    const nodes = [...pen.nodes];
+    if (pen.cursor && !pen.pulling) nodes.push({ p: pen.cursor });
+    this.ed.preview = nodes.length >= 2 ? this.penWalls(nodes, false) : null;
+  }
+
+  private penDown(x: number, y: number, e: PointerEvent): void {
+    const pen = this.pen;
+    const last = pen?.nodes[pen.nodes.length - 1];
+    const p = this.snapNode([x, y], this.ed.table, null, -1, e.metaKey || e.ctrlKey, last?.p, e.shiftKey);
+    const near = (q: Vec2) => Math.hypot(q[0] - x, q[1] - y) < 8 * this.m;
+    if (!pen) {
+      this.ed.select([]);
+      this.pen = { nodes: [{ p }], pulling: true, cursor: p };
+      return;
+    }
+    if (pen.nodes.length >= 3 && near(pen.nodes[0].p)) {
+      this.finishPen(true);
+      return;
+    }
+    if (last && near(last.p)) {
+      // clicking the last point again (or a double-click) finishes the wall
+      this.finishPen(false);
+      return;
+    }
+    pen.nodes.push({ p });
+    pen.pulling = true;
+    this.updatePenPreview();
+  }
+
+  private penMove(x: number, y: number, e: PointerEvent): void {
+    this.canvas.style.cursor = 'crosshair';
+    const pen = this.pen;
+    if (pen?.pulling) {
+      // dragging out a curve: the handle follows the mouse, its twin mirrors it
+      const n = pen.nodes[pen.nodes.length - 1];
+      if (Math.hypot(x - n.p[0], y - n.p[1]) > 3 * this.m) {
+        n.out = [x, y];
+        n.in = [2 * n.p[0] - x, 2 * n.p[1] - y];
+        if (pen.nodes.length === 1) delete n.in;
+      }
+      this.updatePenPreview();
+      return;
+    }
+    const last = pen?.nodes[pen.nodes.length - 1];
+    const p = this.snapNode([x, y], this.ed.table, null, -1, e.metaKey || e.ctrlKey, last?.p, e.shiftKey);
+    if (pen) {
+      pen.cursor = p;
+      this.updatePenPreview();
+    }
+  }
+
+  /** Finish the wall being drawn (needs two points; fewer just cancels). */
+  finishPen(closed = false): void {
+    const pen = this.pen;
+    this.pen = null;
+    this.ed.preview = null;
+    this.ed.guides = [];
+    if (!pen || pen.nodes.length < 2) return;
+    const walls = this.penWalls(pen.nodes, closed && pen.nodes.length >= 3);
+    this.ed.addParts(walls, walls.length > 1 ? 'draw mirrored walls' : 'draw wall');
+    this.ed.status = 'Wall added. Keep clicking to draw another, or press V to edit it.';
+  }
+
+  /** Backspace while drawing: take back the last point. */
+  private penUndoPoint(): void {
+    if (!this.pen) return;
+    this.pen.nodes.pop();
+    if (!this.pen.nodes.length) {
+      this.pen = null;
+      this.ed.preview = null;
+    } else this.updatePenPreview();
+  }
+
+  get drawing(): boolean {
+    return !!this.pen;
+  }
+
+  private onDoubleClick = (e: MouseEvent): void => {
+    const ed = this.ed;
+    if (ed.tool !== 'select') return;
+    const wall = ed.selectedWall;
+    if (!wall) return;
+    const [x, y] = this.renderer.toTable(e.clientX, e.clientY);
+    const h = hitPath(toNodes(wall.path), x, y, 6 * this.m, wall.thickness / 2 + 4 * this.m);
+    if (!h || h.kind === 'handle') return;
+    if (h.kind === 'node') {
+      // corner ↔ smooth curve
+      ed.commit(ed.withWallPath(wall.id, (p) => toggleSmooth(p, h.index)), 'toggle curve');
+      ed.activeNode = h.index;
+    } else {
+      ed.commit(ed.withWallPath(wall.id, (p) => insertNode(p, h.index, h.t)), 'add point');
+      ed.activeNode = h.index + 1;
     }
   };
 
@@ -447,6 +708,39 @@ export class EditorCanvas {
       e.preventDefault();
       return;
     }
+    if (this.pen) {
+      if (e.code === 'Enter' || e.code === 'Escape') {
+        e.preventDefault();
+        this.finishPen(false);
+        return;
+      }
+      if (e.code === 'Backspace' || e.code === 'Delete') {
+        e.preventDefault();
+        this.penUndoPoint();
+        return;
+      }
+    }
+    if (!mod && e.code === 'KeyP') {
+      this.setTool('pen');
+      return;
+    }
+    if (!mod && e.code === 'KeyV' && !e.shiftKey) {
+      this.setTool('select');
+      return;
+    }
+    if (!mod && e.shiftKey && e.code === 'KeyH') {
+      ed.flipSelected('x');
+      return;
+    }
+    if (!mod && e.shiftKey && e.code === 'KeyV') {
+      ed.flipSelected('y');
+      return;
+    }
+    if (!mod && e.code === 'KeyS' && !e.shiftKey) {
+      ed.symmetry = !ed.symmetry;
+      ed.status = ed.symmetry ? 'Symmetry on: mirror-image pairs edit together' : 'Symmetry off';
+      return;
+    }
     if (mod && e.code === 'KeyZ') {
       e.preventDefault();
       if (e.shiftKey) ed.redo();
@@ -475,6 +769,10 @@ export class EditorCanvas {
         ed.deleteSelected();
         break;
       case 'Escape':
+        if (ed.activeNode !== null) {
+          ed.activeNode = null;
+          break;
+        }
         if (this.drag && this.drag.kind !== 'pan' && this.drag.kind !== 'marquee') ed.cancelDrag();
         this.drag = null;
         ed.select([]);
@@ -516,9 +814,21 @@ export class EditorCanvas {
     }
   };
 
+  /** Switch tools, finishing any wall being drawn. */
+  setTool(tool: 'select' | 'pen'): void {
+    if (this.pen) this.finishPen(false);
+    this.ed.tool = tool;
+    this.canvas.style.cursor = tool === 'pen' ? 'crosshair' : 'default';
+    if (tool === 'pen') this.ed.status = 'Pen: click to add points, drag to curve, click the last point (or Enter) to finish, the first point to close';
+  }
+
   private onKeyUp = (e: KeyboardEvent): void => {
     if (e.code === 'Space') this.spaceDown = false;
   };
+}
+
+function snapGridM(v: number): number {
+  return Math.round(v / 0.001) * 0.001; // curve handles snap to 1 mm
 }
 
 function corners(b: Bounds): Vec2[] {

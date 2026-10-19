@@ -10,8 +10,21 @@ import { History, uniqueId } from './model/history.ts';
 import { anchor, mirrorAxis, mirrorPart, partBounds, rotatePart, scalePart, translatePart, unionBounds, type Bounds } from './model/parts.ts';
 import type { Guide } from './model/snap.ts';
 import { alignParts, distributeParts, type AlignMode } from './model/arrange.ts';
+import { applySymmetry, findTwins } from './model/symmetry.ts';
+import { mirrorPartY } from './model/parts.ts';
+import { deleteNode, toNodes, toPath, type EditPath } from './model/path.ts';
 
 export { DRAFT_KEY };
+
+export type PenPreset = 'wood' | 'metal' | 'rubber' | 'plastic';
+
+/** What each pen preset draws. */
+export const PEN_PRESETS: Record<PenPreset, { label: string; stem: string; thickness: number; height: number; material: 'wood' | 'metal' | 'rubber' | 'plastic' }> = {
+  wood: { label: 'Wood wall', stem: 'wall', thickness: 0.012, height: 0.05, material: 'wood' },
+  metal: { label: 'Steel rail', stem: 'rail', thickness: 0.006, height: 0.025, material: 'metal' },
+  rubber: { label: 'Rubber', stem: 'rubber', thickness: 0.008, height: 0.03, material: 'rubber' },
+  plastic: { label: 'Plastic', stem: 'plastic', thickness: 0.008, height: 0.035, material: 'plastic' },
+};
 
 function initialTable(): TableDef {
   // no draft yet (or a bad one): start from the test table
@@ -29,6 +42,16 @@ export class EditorState {
   preview = $state.raw<Part[] | null>(null);
   /** Palette entry currently being dragged (HTML drag-and-drop hides the data until drop). */
   dragging = $state<string | null>(null);
+  /** Select tool or pen tool (drawing walls). */
+  tool = $state<'select' | 'pen'>('select');
+  /** What the pen draws. */
+  penPreset = $state<PenPreset>('wood');
+  /** Edit mirror-image pairs together. */
+  symmetry = $state(false);
+  /** The node selected for point editing on the selected wall (Delete removes it). */
+  activeNode = $state<number | null>(null);
+  private twinCache: { table: TableDef; twins: Map<string, string> } | null = null;
+  private dragTwins: Map<string, string> | null = null;
   /** Bumped on every history change so undo/redo labels re-render. */
   private rev = $state(0);
   private history = new History();
@@ -78,9 +101,16 @@ export class EditorState {
 
   // ------------------------------------------------------------ editing core
 
-  /** Replace the table as one undoable step. */
-  commit(next: TableDef, label: string): void {
+  /** Mirror-image pairs on the current table (cached per table). */
+  get twins(): Map<string, string> {
+    if (this.twinCache?.table !== this.table) this.twinCache = { table: this.table, twins: findTwins(this.table) };
+    return this.twinCache.twins;
+  }
+
+  /** Replace the table as one undoable step (with symmetry on, twins follow). */
+  commit(next: TableDef, label: string, symmetric = true): void {
     if (next === this.table) return;
+    if (symmetric && this.symmetry) next = applySymmetry(this.table, next, this.twins);
     this.history.push(this.table, label);
     this.table = next;
     this.rev++;
@@ -90,9 +120,10 @@ export class EditorState {
   /** Live edits during a drag: no history until endDrag(). */
   beginDrag(): void {
     this.dragBefore = this.table;
+    this.dragTwins = this.symmetry ? this.twins : null;
   }
   dragTo(next: TableDef): void {
-    this.table = next;
+    this.table = this.dragTwins && this.dragBefore ? applySymmetry(this.dragBefore, next, this.dragTwins) : next;
   }
   endDrag(label: string): void {
     if (this.dragBefore && this.dragBefore !== this.table) {
@@ -107,6 +138,13 @@ export class EditorState {
     if (this.dragBefore) this.table = this.dragBefore;
     this.dragBefore = null;
     this.guides = [];
+  }
+
+  /** Flip the selection in place, left-right or top-bottom, around its center. */
+  flipSelected(axis: 'x' | 'y'): void {
+    const c = this.selectionCenter;
+    if (!c) return;
+    this.commit(this.mapSelected((p) => (axis === 'x' ? mirrorPart(p, c[0]) : mirrorPartY(p, c[1]))), axis === 'x' ? 'flip horizontal' : 'flip vertical');
   }
 
   undo(): void {
@@ -138,6 +176,7 @@ export class EditorState {
   // ------------------------------------------------------------ commands
 
   select(ids: string[], additive = false): void {
+    this.activeNode = null;
     if (!additive) this.selection = ids;
     else {
       const cur = new Set(this.selection);
@@ -153,7 +192,31 @@ export class EditorState {
     this.selection = this.table.parts.map((p) => p.id);
   }
 
+  /** The single selected wall, if that's what's selected (point editing). */
+  get selectedWall(): Extract<Part, { type: 'wall' }> | null {
+    const sel = this.selectedParts;
+    return sel.length === 1 && sel[0].type === 'wall' ? sel[0] : null;
+  }
+
+  /** A wall with its path edited (for commit or dragTo). */
+  withWallPath(id: string, f: (e: EditPath) => EditPath, base: TableDef = this.table): TableDef {
+    return {
+      ...base,
+      parts: base.parts.map((p) => (p.id === id && p.type === 'wall' ? { ...p, path: toPath(f(toNodes(p.path))) } : p)),
+    };
+  }
+
   deleteSelected(): void {
+    const wall = this.selectedWall;
+    if (wall && this.activeNode !== null) {
+      // a selected point: remove just that point
+      const i = this.activeNode;
+      if (toNodes(wall.path).nodes.length > 2) {
+        this.commit(this.withWallPath(wall.id, (e) => deleteNode(e, i)), 'delete point');
+        this.activeNode = null;
+        return;
+      }
+    }
     if (!this.selection.length) return;
     const ids = new Set(this.selection);
     const n = ids.size;
@@ -262,7 +325,7 @@ export class EditorState {
     try {
       const t = JSON.parse(raw) as TableDef;
       if (validateTable(t, { playable: false }).length) return;
-      this.commit(t, 'tuning from Physics Lab');
+      this.commit(t, 'tuning from Physics Lab', false);
       this.pruneSelection();
       this.status = 'Physics settings updated from the Physics Lab';
     } catch {
@@ -271,7 +334,7 @@ export class EditorState {
   }
 
   loadTable(t: TableDef, label = 'open table'): void {
-    this.commit(structuredClone(t), label);
+    this.commit(structuredClone(t), label, false);
     this.selection = [];
   }
 

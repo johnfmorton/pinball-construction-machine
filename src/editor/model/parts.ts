@@ -298,6 +298,23 @@ export function mirrorPart(p: Part, axis: number): Part {
   }
 }
 
+/** Flip top-to-bottom across the horizontal line y = axis (for flipping in place). */
+export function mirrorPartY(p: Part, axis: number): Part {
+  const moved = mapPoints(p, ([x, y]) => [x, 2 * axis - y]);
+  switch (moved.type) {
+    case 'flipper': {
+      const side = moved.side === 'left' ? 'right' : 'left';
+      return { ...moved, side, input: moved.input ?? moved.side, restAngle: roundM(normDeg(-moved.restAngle)) };
+    }
+    case 'standupTarget':
+    case 'dropTarget':
+    case 'gate':
+      return { ...moved, angle: roundM(normDeg(-moved.angle)) };
+    default:
+      return moved;
+  }
+}
+
 /** The table's mirror axis: the center of the drain (the playfield without the shooter lane). */
 export function mirrorAxis(table: TableDef): number {
   const d = table.parts.find((p) => p.type === 'drain');

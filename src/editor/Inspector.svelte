@@ -4,6 +4,7 @@
   import type { EditorState } from './store.svelte.ts';
   import { positionFields, scores, typeFields } from './model/fields.ts';
   import { roundM } from './model/parts.ts';
+  import { isSmooth, moveNode, toNodes, toggleSmooth } from './model/path.ts';
   import { TYPE_LABELS } from './labels.ts';
   import Field from './Field.svelte';
   import { THEME_DEFS } from '../render3d/themes.ts';
@@ -147,8 +148,53 @@
         <p class="hint">The ball passes only in the arrow’s direction. Across the top of the shooter lane, it stops a ball from falling back into the lane.</p>
       {:else if part.type === 'slingshot'}
         <p class="hint">The rubber face runs from the face start to the face end; it kicks the ball away from the back corner.</p>
-      {:else if part.type === 'wall'}
-        <p class="hint">Reshaping walls point by point comes with the pen tool (next step). For now, move, rotate and resize them.</p>
+      {/if}
+    </section>
+  {/if}
+
+  {#if part.type === 'wall'}
+    {@const ep = toNodes(part.path)}
+    {@const ni = ed.activeNode !== null && ed.activeNode < ep.nodes.length ? ed.activeNode : null}
+    <section>
+      <h4>Shape</h4>
+      <div class="row">
+        <span class="muted">{ep.nodes.length} points · {ep.closed ? 'closed' : 'open'}</span>
+        <button
+          disabled={ep.nodes.length < 3}
+          onclick={() => ed.commit(ed.withWallPath(part.id, (e) => ({ ...e, closed: !e.closed })), ep.closed ? 'open shape' : 'close shape')}
+          >{ep.closed ? 'Open shape' : 'Close shape'}</button
+        >
+      </div>
+      {#if ni !== null}
+        {@const node = ep.nodes[ni]}
+        <h4 class="sub">Point {ni + 1}</h4>
+        <div class="grid">
+          {#each [0, 1] as axis (axis)}
+            <label>
+              <span>{axis ? 'Y' : 'X'} (mm)</span>
+              <input
+                type="number"
+                step="1"
+                value={Math.round(node.p[axis] * 10000) / 10}
+                onchange={(e) => {
+                  const v = Number((e.currentTarget as HTMLInputElement).value) / 1000;
+                  if (!Number.isFinite(v)) return;
+                  const to: [number, number] = axis ? [node.p[0], v] : [v, node.p[1]];
+                  ed.commit(ed.withWallPath(part.id, (p) => moveNode(p, ni, to)), 'move point');
+                }}
+              />
+            </label>
+          {/each}
+        </div>
+        <div class="buttons two pts">
+          <button onclick={() => ed.commit(ed.withWallPath(part.id, (p) => toggleSmooth(p, ni)), 'toggle curve')}>
+            {node.in || node.out ? 'Make corner' : 'Make curve'}
+          </button>
+          <button disabled={ep.nodes.length <= 2} onclick={() => ed.deleteSelected()}>Delete point</button>
+        </div>
+        {#if node.in || node.out}<p class="hint">{isSmooth(node) ? 'Smooth curve: its handles move together.' : 'Its handles move separately.'} <kbd>⌥</kbd>-drag a handle to break a smooth curve.</p>{/if}
+      {:else}
+        <p class="hint">Click a point on the wall to select it; drag points and handles to reshape. Double-click the wall to add a point, or a point to switch corner ↔ curve.</p>
       {/if}
     </section>
   {/if}
@@ -288,5 +334,9 @@
   .color input { width: 44px; height: 24px; padding: 1px; }
   .color button { padding: 0 7px; }
   .color em { color: var(--muted); font-size: 11px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); font-size: 12px; }
+  h4.sub { margin-top: 12px; }
+  .pts { margin-top: 8px; }
   .problems { margin: 0; padding-left: 18px; color: var(--warn); }
 </style>

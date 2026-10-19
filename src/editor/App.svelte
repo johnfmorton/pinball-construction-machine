@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import testTable from '../../tables/test-table.json';
   import type { TableDef } from '../core/table/format.ts';
-  import { DRAFT_KEY, EditorState } from './store.svelte.ts';
+  import { DRAFT_KEY, EditorState, PEN_PRESETS, type PenPreset } from './store.svelte.ts';
   import { EditorCanvas } from './canvas.ts';
   import Inspector from './Inspector.svelte';
   import Palette from './Palette.svelte';
@@ -56,14 +56,27 @@
       <span class="name">{ed.table.meta.name}</span>
     </div>
     <div class="tools">
+      <div class="seg">
+        <button class:on={ed.tool === 'select'} onclick={() => view?.setTool('select')} title="Select and edit (V)">↖ Select</button>
+        <button class:on={ed.tool === 'pen'} onclick={() => view?.setTool('pen')} title="Pen: draw walls and rails (P)">✒ Pen</button>
+      </div>
+      {#if ed.tool === 'pen'}
+        <select bind:value={ed.penPreset} title="What the pen draws">
+          {#each Object.entries(PEN_PRESETS) as [k, v] (k)}<option value={k as PenPreset}>{v.label}</option>{/each}
+        </select>
+      {/if}
+      <button class:on={ed.symmetry} onclick={() => (ed.symmetry = !ed.symmetry)} title="Symmetry (S): edit mirror-image pairs together, and draw walls on both sides">⟷ Symmetry</button>
+      <span class="sep"></span>
       <button disabled={!ed.canUndo} onclick={() => ed.undo()} title={ed.undoLabel ? `Undo ${ed.undoLabel} (⌘Z)` : 'Undo (⌘Z)'}>↶ Undo</button>
       <button disabled={!ed.canRedo} onclick={() => ed.redo()} title={ed.redoLabel ? `Redo ${ed.redoLabel} (⇧⌘Z)` : 'Redo (⇧⌘Z)'}>↷ Redo</button>
       <span class="sep"></span>
-      <button disabled={!ed.selection.length} onclick={() => ed.duplicateSelected()} title="Duplicate (⌘D, or ⌥-drag)">Duplicate</button>
+      <button disabled={!ed.selection.length} onclick={() => ed.duplicateSelected()} title="Duplicate (⌘D, or ⌥-drag)">⧉</button>
       <button disabled={!ed.selection.length} onclick={() => ed.mirrorSelected()} title="Mirror copy across the center line (M)">Mirror</button>
+      <button disabled={!ed.selection.length} onclick={() => ed.flipSelected('x')} title="Flip left-right in place (⇧H)">⇋</button>
+      <button disabled={!ed.selection.length} onclick={() => ed.flipSelected('y')} title="Flip top-bottom in place (⇧V)">⇵</button>
       <button disabled={!ed.selection.length} onclick={() => ed.rotateSelected(-15)} title="Rotate −15° ( ⇧[ )">⟲</button>
       <button disabled={!ed.selection.length} onclick={() => ed.rotateSelected(15)} title="Rotate +15° ( ⇧] )">⟳</button>
-      <button disabled={!ed.selection.length} onclick={() => ed.deleteSelected()} title="Delete (⌫)">Delete</button>
+      <button disabled={!ed.selection.length} onclick={() => ed.deleteSelected()} title="Delete (⌫)">✕</button>
       <span class="sep"></span>
       <button class:on={ed.snap} onclick={() => (ed.snap = !ed.snap)} title="Grid, angle and alignment snapping (hold ⌘ to place freely)">Snap</button>
       <button onclick={() => view?.zoomBy(1 / 1.25)} title="Zoom out">−</button>
@@ -72,7 +85,7 @@
       <button onclick={() => view?.fit()} title="Fit table (0)">Fit</button>
     </div>
     <div class="right">
-      <button onclick={() => (showHelp = !showHelp)} class:on={showHelp}>Shortcuts</button>
+      <button onclick={() => (showHelp = !showHelp)} class:on={showHelp} title="Keyboard shortcuts">?</button>
       <button onclick={resetToTest} title="Replace the draft with the test table (undoable)">Reset</button>
       <button
         class="play"
@@ -122,6 +135,12 @@
         <p><kbd>←↑↓→</kbd> nudge 1 mm (<kbd>⇧</kbd> 5 mm) · <kbd>[</kbd> <kbd>]</kbd> rotate 5° (<kbd>⇧</kbd> 15°) · <kbd>−</kbd> <kbd>=</kbd> resize 5%</p>
         <p><kbd>M</kbd> mirror copy · <kbd>⌘D</kbd> duplicate · <kbd>⌫</kbd> delete · <kbd>⌘A</kbd> select all · <kbd>Esc</kbd> deselect</p>
         <p><kbd>⌘Z</kbd> undo · <kbd>⇧⌘Z</kbd> redo</p>
+        <h4>Drawing walls</h4>
+        <p><kbd>P</kbd> pen · click to add points · drag to pull out a curve · <kbd>⇧</kbd> locks 15° angles</p>
+        <p>Click the last point or press <kbd>Enter</kbd> to finish · click the first point to close · <kbd>⌫</kbd> takes back a point · <kbd>V</kbd> back to select</p>
+        <p>Select a wall to edit its points: drag a point or handle (<kbd>⌥</kbd> breaks a smooth curve) · double-click the wall to add a point · double-click a point for corner ↔ curve · <kbd>⌫</kbd> deletes the selected point</p>
+        <h4>Mirroring</h4>
+        <p><kbd>S</kbd> symmetry: mirror pairs move, reshape and delete together, and the pen draws both sides · <kbd>M</kbd> mirrored copy · <kbd>⇧H</kbd> <kbd>⇧V</kbd> flip in place</p>
         <h4>View</h4>
         <p>Pinch or scroll-wheel zooms · two-finger scroll pans · <kbd>Space</kbd>-drag pans · <kbd>0</kbd> fit</p>
       </div>
@@ -158,10 +177,22 @@
     background: var(--panel);
     border-bottom: 1px solid var(--line);
   }
-  .brand { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+  .brand { display: flex; gap: 10px; align-items: baseline; min-width: 0; flex: none; white-space: nowrap; }
   .brand .name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tools, .right { display: flex; gap: 5px; align-items: center; }
+  header button, header a { white-space: nowrap; }
+  @media (max-width: 1500px) {
+    .brand .name { display: none; }
+  }
+  @media (max-width: 1340px) {
+    .tools { gap: 3px; }
+    header button { padding: 4px 7px; }
+  }
   .tools { flex: 1; justify-content: center; }
+  .seg { display: flex; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+  .tools select { padding: 4px 6px; }
   .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
   .zoom { min-width: 44px; text-align: center; color: var(--muted); font: 12px ui-monospace, monospace; }
   .play { background: #1f6f3f; border-color: #2c9a58; }

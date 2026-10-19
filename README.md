@@ -39,7 +39,10 @@ At `/editor.html`. Top-down editing on the true collider shapes. On the left, th
 | Select | Click; `⇧`-click adds/removes; drag on empty space to box-select |
 | Move, resize, rotate | Drag the part; corner handles resize; the top handle rotates |
 | Snapping | 5 mm grid, 5° angles, and guides to other parts, the center line, and mirror images. Hold `⌘` to place freely |
-| Duplicate, mirror | `⌘D` or `⌥`-drag; `M` makes a mirrored copy across the center line |
+| Draw walls | `P` pen: click to add points, drag to pull out a curve, `⇧` locks 15° angles; click the last point or `Enter` to finish, the first point to close; `⌫` takes back a point. The toolbar picks wood wall, steel rail, rubber or plastic. `V` returns to select |
+| Reshape walls | Select a wall: drag its points and curve handles (`⌥` breaks a smooth curve); double-click the wall to add a point, a point to switch corner ↔ curve; `⌫` deletes the selected point. The inspector edits point positions and opens/closes the shape |
+| Duplicate, mirror | `⌘D` or `⌥`-drag; `M` makes a mirrored copy across the center line; `⇧H` / `⇧V` flip in place |
+| Symmetry | `S`: mirror-image pairs (found from their shapes) move, reshape, change settings and delete together, and the pen draws both sides at once |
 | Nudge, rotate, resize | Arrows 1 mm (`⇧` 5 mm), `[` `]` 5° (`⇧` 15°), `−` `=` 5% |
 | Undo | `⌘Z` / `⇧⌘Z` |
 | View | Pinch or wheel to zoom, two-finger scroll or `Space`-drag to pan, `0` to fit |
