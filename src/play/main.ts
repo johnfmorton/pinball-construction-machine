@@ -2,6 +2,7 @@
  * The 3D play page. The physics worker is the same one the lab uses; this page
  * only renders its snapshots in 3D and forwards inputs.
  */
+import '../shared/dev-worker.ts'; // first: patches Worker before anything starts one
 import { tableTuning } from '../core/physics/tuning.ts';
 import type { TableDef, ThemeName } from '../core/table/format.ts';
 import type { FromWorker, Snapshot, ToWorker } from '../worker/protocol.ts';
@@ -62,8 +63,8 @@ function loadTable(): void {
 fillTableSelect($<HTMLSelectElement>('table-select'), TABLES);
 /** The corner links carry the current table, so the lab and editor open it too. */
 function syncLinks(): void {
-  linkWithTable($<HTMLAnchorElement>('link-lab'), '/lab.html', tableKey);
-  $<HTMLAnchorElement>('link-editor').href = '/editor.html';
+  const lab = document.getElementById('link-lab') as HTMLAnchorElement | null;
+  if (lab) linkWithTable(lab, '/lab', tableKey);
 }
 syncLinks();
 $<HTMLSelectElement>('table-select').value = tableKey;

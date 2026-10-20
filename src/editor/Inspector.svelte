@@ -8,6 +8,7 @@
   import { TYPE_LABELS } from './labels.ts';
   import Field from './Field.svelte';
   import { THEME_DEFS } from '../render3d/themes.ts';
+  import { session } from '../shared/session.ts';
 
   let { ed }: { ed: EditorState } = $props();
 
@@ -298,7 +299,9 @@
     <h4>Physics</h4>
     <p class="hint top">
       {physicsCount ? `${physicsCount} custom setting${physicsCount === 1 ? '' : 's'}.` : 'Standard physics.'}
-      Tune them in the <a href="/lab.html?table=draft">Physics Lab</a>; <b>Save to table</b> there brings them back here.
+      {#if session().features.lab}
+        Tune them in the <a href="/lab?table=draft">Physics Lab</a>; <b>Save to table</b> there brings them back here.
+      {/if}
     </p>
   </section>
   {#if ed.problems.length}
