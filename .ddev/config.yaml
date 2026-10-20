@@ -1,0 +1,19 @@
+name: pinball-construction-machine
+type: laravel
+docroot: public
+php_version: "8.4"
+webserver_type: nginx-fpm
+database:
+  type: mysql
+  version: "8.0"
+nodejs_version: "22"
+composer_version: "2"
+corepack_enable: false
+xdebug_enabled: false
+# Vite runs inside the web container on 5280 (not 5173, which the ddev router
+# already hands to other projects' Vite servers).
+web_extra_exposed_ports:
+  - name: vite
+    container_port: 5280
+    http_port: 5279
+    https_port: 5280

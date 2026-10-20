@@ -2,6 +2,7 @@
  * Physics Lab: the Phase 0 tuning harness. Hosts the physics worker, the
  * debug renderer, live tuning sliders, telemetry, and replay tools.
  */
+import '../shared/dev-worker.ts'; // first: patches Worker before anything starts one
 import { validateTable, type TableDef } from '../core/table/format.ts';
 import { DEFAULT_TUNING, TUNING_SPECS, tableTuning, tuningDiff, type Tuning } from '../core/physics/tuning.ts';
 import type { Replay } from '../core/sim/replay.ts';

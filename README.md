@@ -6,11 +6,18 @@ Build your own pinball tables in the browser, play them, and rate other people's
 
 ## Running it
 
-Requires Node 20+.
+Laravel serves the pages and Vite runs inside [ddev](https://ddev.com) (see [`docs/backend.md`](docs/backend.md)). Requires ddev.
 
 ```bash
-npm install
-npm run dev        # 3D table at http://127.0.0.1:5280, editor at /editor.html, Physics Lab at /lab.html
+make install       # first time: start ddev, install PHP and JS packages, create .env, migrate, build
+make dev           # opens https://pinball-construction-machine.ddev.site and runs Vite with hot reload
+make test          # Vitest and PHPUnit
+make migrate       # run new migrations; `make fresh` wipes and reseeds the database
+```
+
+The 3D table is at `/`, the editor at `/editor`, and the Physics Lab at `/lab` (set `PCM_LAB_PUBLIC=false` in `.env` to close it). The TypeScript tools don't need ddev:
+
+```bash
 npm test           # physics, determinism, and replay tests
 npm run typecheck
 npm run check      # type-check the Svelte components
@@ -27,11 +34,11 @@ npx tsx scripts/make-tables.ts                # regenerate the test tables in /t
 
 ## The 3D table
 
-Open `http://127.0.0.1:5280`. Same controls as the lab (below), plus `P` pause, `M` sound on/off, `H` hide the help bar. The top-left menus switch table, playfield theme (Midnight, Sunset Strip, Classic 1977), and graphics quality. **Auto** quality starts at High and steps down if the frame rate can't hold about 50 fps; the corner shows the current fps.
+Open `/`. Same controls as the lab (below), plus `P` pause, `M` sound on/off, `H` hide the help bar. The top-left menus switch table, playfield theme (Midnight, Sunset Strip, Classic 1977), and graphics quality. **Auto** quality starts at High and steps down if the frame rate can't hold about 50 fps; the corner shows the current fps.
 
 ## The editor
 
-At `/editor.html`. Top-down editing on the true collider shapes. On the left, the parts palette (drag a part onto the table, or click it to drop one in the middle of the view) and the list of parts on the table; on the right, the inspector: every setting of the selected part, align and distribute for several parts, or the table's own settings (name, size, slope, balls, ball save, theme and colors) when nothing is selected. The **One-way gate** (in Lanes & switches) lets the ball pass only in its arrow's direction; put one across the top of the shooter lane so a ball can't fall back in. The draft autosaves in your browser and every page can open it: **▶ Play** opens it in the 3D player, and the player and Physics Lab list it as **Editor draft** in their table menus (their links between pages keep the current table). In the lab, **Save to table** on the draft writes the tuning back into the draft, and an open editor picks it up as an undoable change.
+At `/editor`. Top-down editing on the true collider shapes. On the left, the parts palette (drag a part onto the table, or click it to drop one in the middle of the view) and the list of parts on the table; on the right, the inspector: every setting of the selected part, align and distribute for several parts, or the table's own settings (name, size, slope, balls, ball save, theme and colors) when nothing is selected. The **One-way gate** (in Lanes & switches) lets the ball pass only in its arrow's direction; put one across the top of the shooter lane so a ball can't fall back in. The draft autosaves in your browser and every page can open it: **▶ Play** opens it in the 3D player, and the player and Physics Lab list it as **Editor draft** in their table menus (their links between pages keep the current table). In the lab, **Save to table** on the draft writes the tuning back into the draft, and an open editor picks it up as an undoable change.
 
 | Action | How |
 | --- | --- |
@@ -49,7 +56,7 @@ At `/editor.html`. Top-down editing on the true collider shapes. On the left, th
 
 ## The Physics Lab
 
-At `/lab.html`: the 2D tuning and debugging tool.
+At `/lab`: the 2D tuning and debugging tool.
 
 | Key | Action |
 | --- | --- |

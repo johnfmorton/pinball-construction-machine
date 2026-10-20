@@ -1,11 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pinball Construction Machine</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%23c8ced6%22 stroke=%22%235d6670%22 stroke-width=%222%22/%3E%3Ccircle cx=%2212%22 cy=%2211%22 r=%224%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="/src/play/style.css" />
+    @include('partials.head', ['title' => 'Pinball Construction Machine'])
+    @vite(['src/play/style.css', 'src/play/main.ts'])
   </head>
   <body>
     <canvas id="view"></canvas>
@@ -18,8 +15,10 @@
     <div id="message" hidden></div>
 
     <nav id="corner">
-      <a id="link-editor" href="/editor.html" title="Build and edit tables">Editor</a>
-      <a id="link-lab" href="/lab.html" title="Open the 2D physics lab">Physics Lab</a>
+      <a id="link-editor" href="{{ route('editor') }}" title="Build and edit tables">Editor</a>
+      @if (config('pcm.lab_public'))
+        <a id="link-lab" href="{{ route('lab') }}" title="Open the 2D physics lab">Physics Lab</a>
+      @endif
       <select id="table-select" aria-label="Table"></select>
       <select id="theme-select" aria-label="Playfield theme">
         <option value="midnight">Midnight</option>
@@ -39,7 +38,5 @@
       <kbd>S</kbd> start · <kbd>Z</kbd>/<kbd>⇧</kbd> left flipper · <kbd>/</kbd>/<kbd>⇧</kbd> right flipper · hold <kbd>Enter</kbd> plunger ·
       <kbd>Space</kbd> <kbd>Q</kbd> <kbd>E</kbd> nudge · <kbd>P</kbd> pause · <kbd>M</kbd> sound · <kbd>H</kbd> hide
     </div>
-
-    <script type="module" src="/src/play/main.ts"></script>
   </body>
 </html>

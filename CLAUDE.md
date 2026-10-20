@@ -4,8 +4,8 @@ Web app to build, play, and rate pinball tables (reimagining Bill Budge's Pinbal
 
 ## Commands
 
-- `npm run dev`: 3D table at `/`, Physics Lab at `/lab.html` (Vite, 127.0.0.1:5280)
-- `npm test`: Vitest; must stay green
+- `make dev`: Laravel + Vite in ddev at https://pinball-construction-machine.ddev.site (3D table `/`, editor `/editor`, Physics Lab `/lab`); `make test` runs Vitest and PHPUnit. See `docs/backend.md`.
+- `npm test`: Vitest; must stay green (no ddev needed). `ddev artisan test`: PHPUnit; also green.
 - `npm run typecheck` and `npm run check` (svelte-check)
 - `npx tsx scripts/make-tables.ts`: regenerate `tables/*.json` (don't hand-edit those files)
 
@@ -20,4 +20,5 @@ Web app to build, play, and rate pinball tables (reimagining Bill Budge's Pinbal
 - `src/render3d/` only follows physics snapshots; it never affects the simulation. Build part meshes in table space (x, height, table y) from the same data the physics uses, so visuals match colliders.
 - Rendering budget: 60 fps on integrated laptop GPUs. One material per mesh (call `clearGroups()`), no transmission materials, light intensities in physical units (key light ≈ 3 lux on the playfield). Bright highlights are clamped before bloom; keep bloom for emissive lamps only.
 - Editor: Svelte only for the UI chrome (panels, toolbar); canvas and model logic are plain TS. Keep `src/editor/model/` DOM-free and unit-tested. The table is replaced immutably on each edit (history = whole-table snapshots); drags commit one history entry.
+- Backend: Laravel at the repo root, Blade shells in `resources/views/` load the TS entries with `@vite`. Pages get server state as inline JSON (`#pcm-session`, read by `src/shared/session.ts`), not an extra request. Physics workers must be started with the literal `new Worker(new URL(...), { type: 'module' })` pattern; `src/shared/dev-worker.ts` makes that work cross-origin in dev.
 - Check in with John before pushing to main or other significant actions.

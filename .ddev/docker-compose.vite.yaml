@@ -1,0 +1,6 @@
+services:
+  web:
+    expose:
+      - "5280"
+    environment:
+      - VITE_PROJECT_DIR=/var/www/html

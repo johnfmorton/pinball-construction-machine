@@ -7,6 +7,7 @@
   import Inspector from './Inspector.svelte';
   import Palette from './Palette.svelte';
   import { TYPE_LABELS, TYPE_ORDER } from './labels.ts';
+  import { session } from '../shared/session.ts';
 
   const ed = new EditorState();
   let canvasEl: HTMLCanvasElement;
@@ -94,7 +95,9 @@
         title={ed.problems.length ? `Not playable yet: this table ${ed.problems.join(', ')}` : 'Open this table in the 3D player'}>▶ Play</button
       >
       <a href="/?table=draft" class="link" title="This draft in the 3D player">3D table</a>
-      <a href="/lab.html?table=draft" class="link" title="Tune this draft's physics">Lab</a>
+      {#if session().features.lab}
+        <a href="/lab?table=draft" class="link" title="Tune this draft's physics">Lab</a>
+      {/if}
     </div>
   </header>
 

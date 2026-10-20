@@ -1,11 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Physics Lab · Pinball Construction Machine</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%23c8ced6%22 stroke=%22%235d6670%22 stroke-width=%222%22/%3E%3Ccircle cx=%2212%22 cy=%2211%22 r=%224%22 fill=%22%23fff%22/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="/src/debug/style.css" />
+    @include('partials.head', ['title' => 'Physics Lab · Pinball Construction Machine'])
+    @vite(['src/debug/style.css', 'src/debug/main.ts'])
   </head>
   <body>
     <div id="app">
@@ -16,7 +13,7 @@
       <aside id="panel">
         <header>
           <h1>Physics Lab</h1>
-          <p class="sub">Pinball Construction Machine · <a id="link-play" href="/">3D table</a> · <a id="link-editor" href="/editor.html">Editor</a></p>
+          <p class="sub">Pinball Construction Machine · <a id="link-play" href="{{ route('play') }}">3D table</a> · <a id="link-editor" href="{{ route('editor') }}">Editor</a></p>
         </header>
 
         <section id="scoreboard">
@@ -107,6 +104,5 @@
         </details>
       </aside>
     </div>
-    <script type="module" src="/src/debug/main.ts"></script>
   </body>
 </html>

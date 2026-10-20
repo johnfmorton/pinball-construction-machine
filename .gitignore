@@ -1,5 +1,26 @@
+# Frontend
 node_modules/
 dist/
-.DS_Store
-*.log
 .vite/
+*.log
+.DS_Store
+Thumbs.db
+
+# Laravel
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+/.phpunit.cache
+/auth.json
+/build
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+_ide_helper.php
+
+# Playwright MCP output
+/.playwright-mcp
